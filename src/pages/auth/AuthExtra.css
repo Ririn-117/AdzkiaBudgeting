@@ -1,0 +1,28 @@
+/* Tambahan gaya untuk Register & Lupa Kata Sandi (melengkapi Login.css) */
+.login-card-wide { max-width: 580px; }
+
+.brand-center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.brand-center h3 { margin: 0.9rem 0 0.2rem; font-size: 1.05rem; font-weight: 800; letter-spacing: 0.01em; }
+.brand-center p { margin: 0; font-size: 0.8rem; color: #374151; }
+
+.divider { border: none; border-top: 1px solid #e5e7f0; margin: 1.4rem 0 1.5rem; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+
+.agree { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.85rem; color: #4b5563; cursor: pointer; line-height: 1.45; }
+.agree input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--primary); flex-shrink: 0; }
+
+.chip-icon { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 0.5rem; }
+
+.back-link { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+
+.btn-link { text-decoration: none; margin-top: 0.5rem; }
+
+.success-panel { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; padding: 0.5rem 0 0.25rem; color: #166534; }
+.success-panel h2 { margin: 0.25rem 0 0; font-size: 1.35rem; color: #111827; }
+.success-panel p { margin: 0 0 0.75rem; color: #4b5563; font-size: 0.95rem; line-height: 1.5; }
+.success-panel .btn-link { color: #fff; }
+
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
