@@ -3,7 +3,7 @@ import { ROLES } from '../constants/roles';
 // DATA DUMMY, hanya untuk pengembangan. Hapus saat backend siap.
 // Password dibandingkan di sisi klien, jadi ini TIDAK AMAN dan TIDAK terhubung ke backend.
 const MOCK_USERS = [
-  { id: 1, username: 'unit', email: 'unit@adzkia.ac.id', password: 'password123', name: 'Kepala Prodi', role: ROLES.UNIT_PRODI },
+  { id: 1, username: 'unit', email: 'unit@adzkia.ac.id', password: 'password123', name: 'Dr. Rahmat Hidayat, M.Pd', role: ROLES.UNIT_PRODI },
   { id: 2, username: 'bkpu', email: 'bkpu@adzkia.ac.id', password: 'password123', name: 'Staf BKPU', role: ROLES.BKPU },
   { id: 3, username: 'wr2', email: 'wr2@adzkia.ac.id', password: 'password123', name: 'Wakil Rektor II', role: ROLES.WAKIL_REKTOR_2 },
   { id: 4, username: 'yayasan', email: 'yayasan@adzkia.ac.id', password: 'password123', name: 'Pengurus Yayasan', role: ROLES.YAYASAN },

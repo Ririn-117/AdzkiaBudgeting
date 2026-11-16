@@ -9,33 +9,34 @@ import {
   Wallet,
 } from 'lucide-react';
 
-const BASE = '/dashboard/unit-prodi';
+const BASE = '/dashboard/unit';
 
 export const UNIT_MENU = [
   {
-    heading: 'Menu Utama',
+    heading: null,
     items: [{ label: 'Dashboard', to: BASE, icon: LayoutDashboard, end: true }],
   },
   {
-    heading: 'Pengajuan Anggaran',
+    heading: 'Penganggaran',
+    indent: true,
     items: [
-      { label: 'Daftar Pengajuan RKAT', to: `${BASE}/pengajuan`, icon: ListChecks },
-      { label: 'Buat Pengajuan Baru', to: `${BASE}/pengajuan/baru`, icon: FilePlus2 },
-      { label: 'Import RAB dari Excel', to: `${BASE}/pengajuan/import`, icon: FileSpreadsheet },
+      { label: 'Daftar Pengajuan', to: `${BASE}/pengajuan`, icon: ListChecks, end: true },
+      { label: 'Buat Pengajuan', to: `${BASE}/pengajuan/baru`, icon: FilePlus2 },
+      { label: 'Import Excel', to: `${BASE}/pengajuan/import`, icon: FileSpreadsheet },
     ],
   },
   {
-    heading: 'Pencairan & Pelaporan',
+    heading: 'Realisasi & Audit',
     items: [
       { label: 'Pencairan Dana', to: `${BASE}/pencairan`, icon: Wallet },
-      { label: 'Laporan SPJ', to: `${BASE}/laporan-spj`, icon: ClipboardCheck },
+      { label: 'Laporan (LPJ)', to: `${BASE}/laporan-spj`, icon: ClipboardCheck },
     ],
   },
   {
-    heading: 'Akun',
+    heading: 'Sistem',
     items: [
-      { label: 'Notifikasi & Riwayat', to: `${BASE}/notifikasi`, icon: Bell },
-      { label: 'Profil & Pengaturan', to: `${BASE}/profil`, icon: UserCircle },
+      { label: 'Notifikasi', to: `${BASE}/notifikasi`, icon: Bell, showBadge: true },
+      { label: 'Profil Saya', to: `${BASE}/profil`, icon: UserCircle },
     ],
   },
 ];

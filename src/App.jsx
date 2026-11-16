@@ -8,7 +8,13 @@ import { ROLES } from './constants/roles';
 
 import UnitLayout from './layouts/UnitLayout';
 import UnitDashboard from './pages/unit/UnitDashboard';
-import ComingSoon from './components/common/ComingSoon';
+import PengajuanList from './pages/unit/PengajuanList';
+import PengajuanCreate from './pages/unit/PengajuanCreate';
+import PengajuanImport from './pages/unit/PengajuanImport';
+import Pencairan from './pages/unit/Pencairan';
+import Lpj from './pages/unit/Lpj';
+import Notifikasi from './pages/unit/Notifikasi';
+import Profil from './pages/unit/Profil';
 
 export default function App() {
   return (
@@ -19,7 +25,7 @@ export default function App() {
 
       {/* Role Unit / Prodi */}
       <Route
-        path="/dashboard/unit-prodi"
+        path="/dashboard/unit"
         element={
           <ProtectedRoute allowedRoles={[ROLES.UNIT_PRODI]}>
             <UnitLayout />
@@ -27,13 +33,13 @@ export default function App() {
         }
       >
         <Route index element={<UnitDashboard />} />
-        <Route path="pengajuan" element={<ComingSoon title="Daftar Pengajuan Anggaran RKAT" />} />
-        <Route path="pengajuan/baru" element={<ComingSoon title="Buat Pengajuan Anggaran Baru" />} />
-        <Route path="pengajuan/import" element={<ComingSoon title="Import Rencana Anggaran dari File Excel" />} />
-        <Route path="pencairan" element={<ComingSoon title="Pencairan Dana Anggaran" />} />
-        <Route path="laporan-spj" element={<ComingSoon title="Laporan Pertanggungjawaban SPJ Kegiatan" />} />
-        <Route path="notifikasi" element={<ComingSoon title="Pusat Notifikasi & Riwayat Aktivitas" />} />
-        <Route path="profil" element={<ComingSoon title="Profil Pengguna & Pengaturan Akun" />} />
+        <Route path="pengajuan" element={<PengajuanList />} />
+        <Route path="pengajuan/baru" element={<PengajuanCreate />} />
+        <Route path="pengajuan/import" element={<PengajuanImport />} />
+        <Route path="pencairan" element={<Pencairan />} />
+        <Route path="laporan-spj" element={<Lpj />} />
+        <Route path="notifikasi" element={<Notifikasi />} />
+        <Route path="profil" element={<Profil />} />
       </Route>
 
       {/* Role lain: sementara masih placeholder */}
