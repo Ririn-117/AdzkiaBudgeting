@@ -18,6 +18,19 @@ import Lpj from './pages/unit/Lpj';
 import LpjDetail from './pages/unit/LpjDetail';
 import Notifikasi from './pages/unit/Notifikasi';
 import Profil from './pages/unit/Profil';
+import AdminLayout from './layouts/AdminLayout';
+import {
+  AdminDashboard,
+  AdminUsers,
+  AdminRoles,
+  AdminPeriods,
+  AdminCategories,
+  AdminUnits,
+  AdminConfig,
+  AdminAudit,
+  AdminNotifications,
+  AdminProfile,
+} from './pages/admin/AdminPages';
 
 export default function App() {
   return (
@@ -46,6 +59,27 @@ export default function App() {
         <Route path="laporan-spj/:id" element={<LpjDetail />} />
         <Route path="notifikasi" element={<Notifikasi />} />
         <Route path="profil" element={<Profil />} />
+      </Route>
+
+      {/* Role Administrator */}
+      <Route
+        path="/dashboard/administrator"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.ADMINISTRATOR]}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="pengguna" element={<AdminUsers />} />
+        <Route path="role-hak-akses" element={<AdminRoles />} />
+        <Route path="periode-anggaran" element={<AdminPeriods />} />
+        <Route path="kategori-anggaran" element={<AdminCategories />} />
+        <Route path="unit-prodi" element={<AdminUnits />} />
+        <Route path="konfigurasi" element={<AdminConfig />} />
+        <Route path="audit-log" element={<AdminAudit />} />
+        <Route path="notifikasi" element={<AdminNotifications />} />
+        <Route path="profil" element={<AdminProfile />} />
       </Route>
 
       {/* Role lain: sementara masih placeholder */}
