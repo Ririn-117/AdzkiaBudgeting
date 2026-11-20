@@ -73,7 +73,7 @@ export default function App() {
         <Route path="profil" element={<Profil />} />
       </Route>
 
-              {/* Role BKPU */}
+      {/* Role BKPU */}
       <Route
         path="/dashboard/bkpu"
         element={
@@ -94,6 +94,8 @@ export default function App() {
         <Route path="profil" element={<BkpuProfil />} />
         <Route path="sla" element={<MatriksSla />} />
         <Route path="panduan-sbm" element={<PanduanSbm />} />
+      </Route>
+
       {/* Role Administrator */}
       <Route
         path="/dashboard/administrator"
