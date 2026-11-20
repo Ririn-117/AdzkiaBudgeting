@@ -1,0 +1,38 @@
+.admin-welcome { display:flex; justify-content:space-between; align-items:center; gap:1rem; background:linear-gradient(135deg,#161a77,#252ba0); color:#fff; }
+.admin-welcome h2 { margin:.45rem 0 .25rem; color:#fff; }
+.admin-welcome p { margin:0; color:#d4d7f4; }
+.admin-status-dot { display:inline-flex; padding:.18rem .55rem; border-radius:99px; background:#19a974; color:#fff; font-size:.68rem; font-weight:800; }
+.admin-server { display:flex; align-items:center; gap:.7rem; min-width:210px; padding:.7rem .9rem; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:rgba(255,255,255,.08); }
+.admin-server span,.admin-server strong { display:block; }
+.admin-server span { font-size:.68rem; color:#bdc2ef; }
+.admin-server strong { font-size:.82rem; }
+.admin-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.9rem; }
+.admin-stat-grid-4 { grid-template-columns:repeat(4,1fr); }
+.admin-stat { display:flex; justify-content:space-between; gap:.7rem; min-width:0; padding:1rem; background:#fff; border:1px solid #e6e8f3; border-top:4px solid #7a0c16; border-radius:10px; }
+.admin-stat > svg { color:#7a0c16; }
+.admin-stat span { font-size:.7rem; font-weight:800; color:#64748b; text-transform:uppercase; }
+.admin-stat p { margin:.3rem 0; font-size:1.35rem; font-weight:800; }
+.admin-stat small { color:#64748b; }
+.admin-stat-green { border-top-color:#0f9d63; }.admin-stat-green > svg { color:#0f9d63; }
+.admin-stat-navy { border-top-color:#161a77; }.admin-stat-navy > svg { color:#161a77; }
+.admin-stat-slate { border-top-color:#64748b; }.admin-stat-slate > svg { color:#64748b; }
+.admin-two-col { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+.admin-empty { min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#64748b; padding:1.5rem; }
+.admin-empty-icon { width:52px; height:52px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#eef2fd; color:#3b4a8f; margin-bottom:.7rem; }
+.admin-empty strong { color:#334155; }.admin-empty p { margin:.35rem 0 0; max-width:420px; }
+.admin-check { display:flex; align-items:center; gap:.6rem; font-size:.86rem; }
+.admin-check input { accent-color:#7a0c16; }
+.admin-role-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem; }
+.admin-role-card { position:relative; min-height:180px; }
+.admin-role-icon { width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:#eef2fd; color:#161a77; margin-bottom:.7rem; }
+.admin-role-card h3 { margin:.6rem 0 .35rem!important; }.admin-role-card p { margin:0; color:#64748b; line-height:1.5; }
+.admin-pillar-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem; }
+.admin-pillar-grid article { display:flex; flex-direction:column; gap:.25rem; border-top:4px solid #7a0c16; }
+.admin-pillar-grid span { color:#64748b; font-size:.78rem; }.admin-pillar-grid strong { font-size:1.25rem; }.admin-pillar-grid small { color:#64748b; }
+.admin-config-status { display:flex; justify-content:space-between; gap:.8rem; flex-wrap:wrap; }
+.admin-config-status span { font-size:.82rem; color:#64748b; }.admin-config-status b { margin-right:.35rem; color:#334155; }
+.admin-profile-head { display:flex; align-items:center; gap:1rem; }.admin-profile-avatar { width:72px;height:72px;border-radius:14px;background:#161a77;color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800; }
+.admin-profile-head h2 { margin:0 0 .2rem!important; }.admin-profile-head p { margin:0 0 .5rem;color:#64748b; }
+.admin-profile-grid { display:grid; grid-template-columns:1.4fr 1fr; gap:.9rem; }
+@media(max-width:1100px){.admin-stat-grid,.admin-stat-grid-4{grid-template-columns:repeat(2,1fr)}.admin-role-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.admin-welcome,.admin-two-col,.admin-profile-grid{grid-template-columns:1fr;display:grid}.admin-role-grid,.admin-pillar-grid{grid-template-columns:1fr}.admin-server{min-width:0}.admin-config-status{flex-direction:column}}
