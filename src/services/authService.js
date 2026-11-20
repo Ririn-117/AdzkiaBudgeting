@@ -4,7 +4,7 @@ import { ROLES } from '../constants/roles';
 // Password dibandingkan di sisi klien, jadi ini TIDAK AMAN dan TIDAK terhubung ke backend.
 const MOCK_USERS = [
   { id: 1, username: 'unit', email: 'unit@adzkia.ac.id', password: 'password123', name: 'Dr. Rahmat Hidayat, M.Pd', role: ROLES.UNIT_PRODI },
-  { id: 2, username: 'bkpu', email: 'bkpu@adzkia.ac.id', password: 'password123', name: 'Staf BKPU', role: ROLES.BKPU },
+  { id: 2, username: 'bkpu', email: 'bkpu@adzkia.ac.id', password: 'password123', name: 'Ahmad Dani, S.E', role: ROLES.BKPU },
   { id: 3, username: 'wr2', email: 'wr2@adzkia.ac.id', password: 'password123', name: 'Wakil Rektor II', role: ROLES.WAKIL_REKTOR_2 },
   { id: 4, username: 'yayasan', email: 'yayasan@adzkia.ac.id', password: 'password123', name: 'Pengurus Yayasan', role: ROLES.YAYASAN },
   { id: 5, username: 'rektor', email: 'rektor@adzkia.ac.id', password: 'password123', name: 'Rektor', role: ROLES.REKTOR },

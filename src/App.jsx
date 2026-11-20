@@ -6,6 +6,18 @@ import DashboardPlaceholder from './pages/DashboardPlaceholder';
 import ProtectedRoute from './routes/ProtectedRoute';
 import { ROLES } from './constants/roles';
 
+import BkpuLayout from './layouts/BkpuLayout';
+import BkpuDashboard from './pages/bkpu/BkpuDashboard';
+import Verifikasi from './pages/bkpu/Verifikasi';
+import SemuaPengajuan from './pages/bkpu/SemuaPengajuan';
+import TelaahPengajuan from './pages/bkpu/TelaahPengajuan';
+import LpjList from './pages/bkpu/LpjList';
+import TelaahLpj from './pages/bkpu/TelaahLpj';
+import Riwayat from './pages/bkpu/Riwayat';
+import BkpuNotifikasi from './pages/bkpu/BkpuNotifikasi';
+import BkpuProfil from './pages/bkpu/BkpuProfil';
+import MatriksSla from './pages/bkpu/MatriksSla';
+import PanduanSbm from './pages/bkpu/PanduanSbm';
 import UnitLayout from './layouts/UnitLayout';
 import UnitDashboard from './pages/unit/UnitDashboard';
 import PengajuanList from './pages/unit/PengajuanList';
@@ -46,6 +58,29 @@ export default function App() {
         <Route path="laporan-spj/:id" element={<LpjDetail />} />
         <Route path="notifikasi" element={<Notifikasi />} />
         <Route path="profil" element={<Profil />} />
+      </Route>
+
+              {/* Role BKPU */}
+      <Route
+        path="/dashboard/bkpu"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.BKPU]}>
+            <BkpuLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<BkpuDashboard />} />
+        <Route path="verifikasi" element={<Verifikasi />} />
+        <Route path="pengajuan" element={<SemuaPengajuan />} />
+        <Route path="pengajuan/:id" element={<TelaahPengajuan />} />
+        <Route path="lpj" element={<LpjList />} />
+        <Route path="lpj/antrean" element={<LpjList initialTab="antrean" />} />
+        <Route path="lpj/:id" element={<TelaahLpj />} />
+        <Route path="riwayat" element={<Riwayat />} />
+        <Route path="notifikasi" element={<BkpuNotifikasi />} />
+        <Route path="profil" element={<BkpuProfil />} />
+        <Route path="sla" element={<MatriksSla />} />
+        <Route path="panduan-sbm" element={<PanduanSbm />} />
       </Route>
 
       {/* Role lain: sementara masih placeholder */}
