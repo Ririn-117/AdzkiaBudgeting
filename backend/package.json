@@ -1,0 +1,22 @@
+{
+  "name": "adzkia-budgeting-backend",
+  "version": "1.0.0",
+  "description": "Backend REST API Sistem Informasi E-Budgeting Universitas Adzkia Padang",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --no-warnings src/server.js",
+    "dev": "node --watch --no-warnings src/server.js",
+    "seed": "node --no-warnings src/database/seed.js",
+    "test": "node --no-warnings tests/api.test.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.0",
+    "xlsx": "^0.18.5"
+  }
+}
