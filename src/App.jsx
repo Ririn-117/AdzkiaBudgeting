@@ -6,6 +6,16 @@ import DashboardPlaceholder from './pages/DashboardPlaceholder';
 import ProtectedRoute from './routes/ProtectedRoute';
 import { ROLES } from './constants/roles';
 
+import Wr2Layout from './layouts/Wr2Layout';
+import Wr2Dashboard from './pages/wr2/Wr2Dashboard';
+import Wr2Menunggu from './pages/wr2/Wr2Menunggu';
+import Wr2Keputusan from './pages/wr2/Wr2Keputusan';
+import Wr2Semua from './pages/wr2/Wr2Semua';
+import Wr2Riwayat from './pages/wr2/Wr2Riwayat';
+import Wr2Laporan from './pages/wr2/Wr2Laporan';
+import Wr2UnitDetail from './pages/wr2/Wr2UnitDetail';
+import Wr2Notifikasi from './pages/wr2/Wr2Notifikasi';
+import Wr2Profil from './pages/wr2/Wr2Profil';
 import BkpuLayout from './layouts/BkpuLayout';
 import BkpuDashboard from './pages/bkpu/BkpuDashboard';
 import Verifikasi from './pages/bkpu/Verifikasi';
@@ -96,6 +106,26 @@ export default function App() {
         <Route path="panduan-sbm" element={<PanduanSbm />} />
       </Route>
 
+            {/* Role Wakil Rektor II */}
+      <Route
+        path="/dashboard/wakil-rektor-2"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.WAKIL_REKTOR_2]}>
+            <Wr2Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Wr2Dashboard />} />
+        <Route path="menunggu" element={<Wr2Menunggu />} />
+        <Route path="pengajuan" element={<Wr2Semua />} />
+        <Route path="pengajuan/:id" element={<Wr2Keputusan />} />
+        <Route path="riwayat" element={<Wr2Riwayat />} />
+        <Route path="laporan" element={<Wr2Laporan />} />
+        <Route path="laporan/:code" element={<Wr2UnitDetail />} />
+        <Route path="notifikasi" element={<Wr2Notifikasi />} />
+        <Route path="profil" element={<Wr2Profil />} />
+      </Route>
+      
       {/* Role Administrator */}
       <Route
         path="/dashboard/administrator"
