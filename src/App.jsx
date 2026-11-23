@@ -53,6 +53,16 @@ import {
   AdminNotifications,
   AdminProfile,
 } from './pages/admin/AdminPages';
+import YayasanLayout from './layouts/YayasanLayout';
+import YayasanDashboard from './pages/yayasan/YayasanDashboard';
+import YayasanMenunggu from './pages/yayasan/YayasanMenunggu';
+import YayasanSemua from './pages/yayasan/YayasanSemua';
+import YayasanKeputusan from './pages/yayasan/YayasanKeputusan';
+import YayasanMonitoring from './pages/yayasan/YayasanMonitoring';
+import YayasanLaporan from './pages/yayasan/YayasanLaporan';
+import YayasanRiwayat from './pages/yayasan/YayasanRiwayat';
+import YayasanNotifikasi from './pages/yayasan/YayasanNotifikasi';
+import YayasanProfil from './pages/yayasan/YayasanProfil';
 
 export default function App() {
   return (
@@ -145,6 +155,27 @@ export default function App() {
         <Route path="audit-log" element={<AdminAudit />} />
         <Route path="notifikasi" element={<AdminNotifications />} />
         <Route path="profil" element={<AdminProfile />} />
+      </Route>
+
+      {/* Role Yayasan */}
+      <Route
+        path="/dashboard/yayasan"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.YAYASAN]}>
+            <YayasanLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<YayasanDashboard />} />
+        <Route path="menunggu" element={<YayasanMenunggu />} />
+        <Route path="menunggu/:id" element={<YayasanKeputusan />} />
+        <Route path="permintaan" element={<YayasanSemua />} />
+        <Route path="permintaan/:id" element={<YayasanKeputusan />} />
+        <Route path="monitoring" element={<YayasanMonitoring />} />
+        <Route path="laporan" element={<YayasanLaporan />} />
+        <Route path="riwayat" element={<YayasanRiwayat />} />
+        <Route path="notifikasi" element={<YayasanNotifikasi />} />
+        <Route path="profil" element={<YayasanProfil />} />
       </Route>
 
       {/* Role lain: sementara masih placeholder */}
