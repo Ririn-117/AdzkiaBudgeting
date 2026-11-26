@@ -7,7 +7,7 @@ const MOCK_USERS = [
   { id: 2, username: 'bkpu', email: 'bkpu@adzkia.ac.id', password: 'password123', name: 'Ahmad Dani, S.E', role: ROLES.BKPU },
   { id: 3, username: 'wr2', email: 'wr2@adzkia.ac.id', password: 'password123', name: 'Dr. H. Muhammad Alfian, M.Si', role: ROLES.WAKIL_REKTOR_2 },
   { id: 4, username: 'yayasan', email: 'yayasan@adzkia.ac.id', password: 'password123', name: 'Prof. Dr. H. Irwan Prayitno, M.Sc.', role: ROLES.YAYASAN },
-  { id: 5, username: 'rektor', email: 'rektor@adzkia.ac.id', password: 'password123', name: 'Rektor', role: ROLES.REKTOR },
+  { id: 5, username: 'rektor', email: 'rektor@adzkia.ac.id', password: 'password123', name: 'Prof. Dr. H. Anhar, S.T., M.T.', role: ROLES.REKTOR },
   { id: 6, username: 'admin', email: 'admin@adzkia.ac.id', password: 'password123', name: 'Administrator', role: ROLES.ADMINISTRATOR },
 ];
 

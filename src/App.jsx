@@ -63,6 +63,14 @@ import YayasanLaporan from './pages/yayasan/YayasanLaporan';
 import YayasanRiwayat from './pages/yayasan/YayasanRiwayat';
 import YayasanNotifikasi from './pages/yayasan/YayasanNotifikasi';
 import YayasanProfil from './pages/yayasan/YayasanProfil';
+import RektorLayout from './layouts/RektorLayout';
+import RektorDashboard from './pages/rektor/RektorDashboard';
+import MonitoringAnggaran from './pages/rektor/MonitoringAnggaran';
+import LaporanAnggaran from './pages/rektor/LaporanAnggaran';
+import LaporanPencairan from './pages/rektor/LaporanPencairan';
+import LaporanLpj from './pages/rektor/LaporanLpj';
+import RektorNotifikasi from './pages/rektor/RektorNotifikasi';
+import RektorProfil from './pages/rektor/RektorProfil';
 
 export default function App() {
   return (
@@ -176,6 +184,24 @@ export default function App() {
         <Route path="riwayat" element={<YayasanRiwayat />} />
         <Route path="notifikasi" element={<YayasanNotifikasi />} />
         <Route path="profil" element={<YayasanProfil />} />
+      </Route>
+
+      {/* Role Rektor (read-only) */}
+      <Route
+        path="/dashboard/rektor"
+        element={
+          <ProtectedRoute allowedRoles={[ROLES.REKTOR]}>
+            <RektorLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<RektorDashboard />} />
+        <Route path="monitoring-anggaran" element={<MonitoringAnggaran />} />
+        <Route path="laporan-anggaran" element={<LaporanAnggaran />} />
+        <Route path="laporan-pencairan" element={<LaporanPencairan />} />
+        <Route path="laporan-lpj" element={<LaporanLpj />} />
+        <Route path="notifikasi" element={<RektorNotifikasi />} />
+        <Route path="profil" element={<RektorProfil />} />
       </Route>
 
       {/* Role lain: sementara masih placeholder */}
