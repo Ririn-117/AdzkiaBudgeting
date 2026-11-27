@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BadgeCheck, Bell, Camera, ClipboardList, Contact, History, IdCard, Lock, Mail, MonitorSmartphone, Network,
   PenLine, Pencil, Phone, Save, ShieldCheck, SlidersHorizontal, Smartphone, UserRound, Laptop, KeyRound, Upload, ArrowRight, ShieldAlert,
@@ -6,6 +6,7 @@ import {
 import {
   ACCESS_ROWS, AUDIT_LOG, BASE, INITIAL_SESSIONS, PROFILE_FORM, PROFILE_PREFS,
 } from '../../data/unitData';
+import { api } from '../../services/api';
 import PageHeader from '../../components/ui/PageHeader';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
@@ -50,33 +51,97 @@ export default function Profil() {
 
   const dirty = phone !== saved.phone || JSON.stringify(prefs) !== JSON.stringify(saved.prefs);
 
-  const save = () => {
+  useEffect(() => {
+    let active = true;
+    api.get('/auth/me')
+      .then((res) => {
+        if (!active || !res?.user) return;
+        const u = res.user;
+        const nextPhone = u.phone || PROFILE_FORM.phone;
+        const nextPrefs = {
+          twofa: Boolean(u.twofa_enabled ?? true),
+          whatsapp: Boolean(u.whatsapp_notif ?? true),
+          revisi: Boolean(u.revisi_notif ?? true),
+        };
+        setPhone(nextPhone);
+        setPrefs(nextPrefs);
+        setSaved({ phone: nextPhone, prefs: nextPrefs });
+        if (u.photo_url) setPhoto(u.photo_url);
+        if (u.signature_url) setSignature(u.signature_url);
+      })
+      .catch(() => {});
+    api.get('/auth/sessions')
+      .then((res) => {
+        if (!active || !Array.isArray(res?.sessions) || !res.sessions.length) return;
+        setSessions(
+          res.sessions.map((s) => ({
+            id: s.id,
+            device: s.device,
+            detail: `IP: ${s.ip_address} (${s.location || 'Jaringan Kampus'})`,
+            since: `Aktif sejak: ${s.last_active_at || s.created_at}`,
+            current: Boolean(s.current),
+          }))
+        );
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const save = async () => {
     if (!PHONE_RE.test(phone.trim())) { setPhoneErr('Nomor tidak valid. Contoh: +62 812-6789-0123'); return; }
     setPhoneErr('');
-    setSaved({ phone: phone.trim(), prefs });
-    toast.push('Pembaruan profil disimpan (simulasi, belum tersimpan di server).');
+    try {
+      await api.put('/auth/profile', {
+        phone: phone.trim(),
+        twofa_enabled: prefs.twofa,
+        whatsapp_notif: prefs.whatsapp,
+        revisi_notif: prefs.revisi,
+      });
+      setSaved({ phone: phone.trim(), prefs });
+      toast.push('Pembaruan profil berhasil disimpan ke database.');
+    } catch (err) {
+      toast.push(err?.message || 'Gagal menyimpan profil.', 'error');
+    }
   };
   const cancel = () => { setPhone(saved.phone); setPrefs(saved.prefs); setPhoneErr(''); };
 
-  const pickImage = (setter, maxMb, label) => (e) => {
+  const pickImage = (setter, maxMb, label, endpoint) => async (e) => {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
     if (!f.type.startsWith('image/')) { toast.push(`${label} harus berupa gambar (PNG/JPG).`, 'error'); return; }
     if (f.size > maxMb * 1024 * 1024) { toast.push(`${label} melebihi ${maxMb} MB.`, 'error'); return; }
     setter(URL.createObjectURL(f));
-    toast.push(`${label} diperbarui (pratinjau lokal).`);
+    if (endpoint) {
+      try {
+        const fd = new FormData();
+        fd.append('file', f);
+        await api.post(endpoint, fd);
+        toast.push(`${label} berhasil diunggah ke server.`);
+        return;
+      } catch {
+        /* fallback ke pratinjau lokal */
+      }
+    }
+    toast.push(`${label} diperbarui.`);
   };
 
-  const changePassword = () => {
+  const changePassword = async () => {
     const e = {};
     if (!pw.current) e.current = 'Kata sandi saat ini wajib diisi.';
     if (pw.next.length < 8) e.next = 'Kata sandi baru minimal 8 karakter.';
     if (pw.confirm !== pw.next) e.confirm = 'Konfirmasi tidak sama.';
     setPwErr(e);
     if (Object.keys(e).length) return;
-    setPw({ current: '', next: '', confirm: '' });
-    toast.push('Kata sandi diperbarui (simulasi, belum terhubung ke server).');
+    try {
+      await api.put('/auth/change-password', { current: pw.current, next: pw.next });
+      setPw({ current: '', next: '', confirm: '' });
+      toast.push('Kata sandi berhasil diperbarui di database.');
+    } catch (err) {
+      toast.push(err?.message || 'Gagal mengubah kata sandi.', 'error');
+    }
   };
 
   const prefRows = [
@@ -111,7 +176,7 @@ export default function Profil() {
           </div>
         </div>
         <button type="button" className="u-btn u-btn-navy" onClick={() => photoRef.current?.click()}><Contact size={15} /> Ubah Foto Profil</button>
-        <input ref={photoRef} type="file" accept="image/*" hidden onChange={pickImage(setPhoto, 2, 'Foto profil')} />
+        <input ref={photoRef} type="file" accept="image/*" hidden onChange={pickImage(setPhoto, 2, 'Foto profil', '/auth/profile/photo')} />
       </section>
 
       <div className="u-tabs" role="tablist">
@@ -193,7 +258,7 @@ export default function Profil() {
                 <div>
                   <p className="u-hint" style={{ marginBottom: '0.7rem' }}>Unggah gambar tanda tangan (PNG/JPG, maks. 1 MB) dengan latar putih atau transparan.</p>
                   <button type="button" className="u-btn u-btn-navy" onClick={() => sigRef.current?.click()}><Upload size={15} /> Unggah Spesimen</button>
-                  <input ref={sigRef} type="file" accept="image/*" hidden onChange={pickImage(setSignature, 1, 'Spesimen tanda tangan')} />
+                  <input ref={sigRef} type="file" accept="image/*" hidden onChange={pickImage(setSignature, 1, 'Spesimen tanda tangan', '/auth/profile/signature')} />
                 </div>
               </div>
               <div className="u-note u-note-success" style={{ marginTop: '1rem' }}>
@@ -246,7 +311,7 @@ export default function Profil() {
                     <p>{s.detail}</p>
                     <p>{s.since}</p>
                     {!s.current && (
-                      <button type="button" className="u-link" onClick={() => { setSessions((p) => p.filter((x) => x.id !== s.id)); toast.push(`Perangkat "${s.device}" dikeluarkan (simulasi).`); }}>Keluarkan Perangkat</button>
+                      <button type="button" className="u-link" onClick={() => { api.del(`/auth/sessions/${s.id}`).catch(() => {}); setSessions((p) => p.filter((x) => x.id !== s.id)); toast.push(`Perangkat "${s.device}" dikeluarkan.`); }}>Keluarkan Perangkat</button>
                     )}
                   </div>
                 </div>

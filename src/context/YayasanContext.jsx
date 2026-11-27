@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import {
   INITIAL_PENDING,
   INITIAL_LOGS,
@@ -9,6 +9,8 @@ import {
   REKENING_KAS,
   YAYASAN,
 } from '../data/yayasanData';
+import { api } from '../services/api';
+import { formatShortDate } from '../services/unitService';
 
 const YayasanContext = createContext(null);
 
@@ -16,14 +18,55 @@ export function YayasanProvider({ children }) {
   const [pending, setPending] = useState(INITIAL_PENDING);
   const [logs, setLogs] = useState(INITIAL_LOGS);
   const [notifs, setNotifs] = useState(INITIAL_NOTIFICATIONS);
-  const [categories, setCategories] = useState(CATEGORIES_3_PILAR);
+  const [categories] = useState(CATEGORIES_3_PILAR);
   const [summary, setSummary] = useState(INITIAL_SUMMARY);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/disbursements')
+      .then((res) => {
+        if (!active || !Array.isArray(res?.disbursements)) return;
+        const dbPending = res.disbursements
+          .filter((d) => d.status === 'proses')
+          .map((d) => ({
+            id: d.code,
+            ref: d.ref || d.code,
+            unit: d.unit_name || 'Prodi S1 PGMI',
+            fakultas: 'Fakultas Tarbiyah & Keguruan',
+            pilar: 'Pilar Pendidikan',
+            program: d.activity || 'Kegiatan RKAT',
+            pic: 'Kaprodi / PIC Unit',
+            paguTotal: Number(d.approved_amount || d.amount || 0),
+            nilaiDiminta: Number(d.amount || 0),
+            termin: d.termin || 'Termin 1',
+            rekening: `${d.bank_name || 'BSI VA'} (${d.bank_account || '8871092831'})`,
+            tglMasuk: formatShortDate(d.requested_at || d.created_at),
+            prioritas: 'Normal',
+            status: 'Menunggu Otorisasi Yayasan',
+          }));
+        if (dbPending.length === 0) return;
+        setPending((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newItems = dbPending.filter((d) => !existingIds.has(d.id));
+          return [...newItems, ...prev];
+        });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // Approve a request
   const approveRequest = (id, note = 'Disetujui Ketua Yayasan via TTE Digital.') => {
     const item = pending.find((p) => p.id === id);
     if (!item) return;
+
+    api.post(`/disbursements/${encodeURIComponent(id)}/process`, {
+      decision: 'cair',
+      note: note || '',
+      title: item.program,
+      amount: item.nilaiDiminta,
+    }).catch(() => {});
 
     setPending((prev) => prev.filter((p) => p.id !== id));
     setLogs((prev) => [
@@ -53,6 +96,13 @@ export function YayasanProvider({ children }) {
   const rejectRequest = (id, note = 'Diminta perbaikan rincian anggaran.') => {
     const item = pending.find((p) => p.id === id);
     if (!item) return;
+
+    api.post(`/disbursements/${encodeURIComponent(id)}/process`, {
+      decision: 'ditolak',
+      note: note || '',
+      title: item.program,
+      amount: item.nilaiDiminta,
+    }).catch(() => {});
 
     setPending((prev) => prev.filter((p) => p.id !== id));
     setLogs((prev) => [

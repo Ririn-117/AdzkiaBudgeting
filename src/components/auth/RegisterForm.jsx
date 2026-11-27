@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertCircle,
@@ -15,6 +15,7 @@ import {
 import { LOGIN_ROLE_OPTIONS, ROLES } from '../../constants/roles';
 import { UNIT_OPTIONS } from '../../constants/units';
 import { registerRequest } from '../../services/authService';
+import { api } from '../../services/api';
 import TextField from './TextField';
 import SelectField from './SelectField';
 import PasswordInput from './PasswordInput';
@@ -55,6 +56,19 @@ export default function RegisterForm() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [unitOptions, setUnitOptions] = useState(UNIT_OPTIONS);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/master/units', { auth: false })
+      .then((res) => {
+        if (active && Array.isArray(res?.units) && res.units.length > 0) {
+          setUnitOptions(res.units.map((u) => ({ value: u.code, label: u.name })));
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const setField = (name) => (e) =>
     setValues((prev) => ({
@@ -138,7 +152,7 @@ export default function RegisterForm() {
             label="Unit / Program Studi"
             icon={Building2}
             placeholder="Pilih Unit/Prodi"
-            options={UNIT_OPTIONS}
+            options={unitOptions}
             value={values.unit}
             onChange={setField('unit')}
             disabled={submitting}

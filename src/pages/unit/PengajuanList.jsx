@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote, ClipboardCheck, Download, Eye, FileClock, FileText, Lock, MessageSquareWarning,
@@ -9,6 +9,7 @@ import { downloadCsv } from '../../utils/csv';
 import {
   BASE, CATEGORY_OPTIONS, DEFAULT_TA, SUBMISSIONS, SUBMISSION_STATUS, TA_OPTIONS,
 } from '../../data/unitData';
+import { fetchSubmissions, deleteSubmission } from '../../services/unitService';
 import PageHeader from '../../components/ui/PageHeader';
 import StatusBadge from '../../components/ui/StatusBadge';
 import SummaryCard from '../../components/ui/SummaryCard';
@@ -60,6 +61,18 @@ export default function PengajuanList() {
   const [size, setSize] = useState(PAGE_SIZES[0]);
   const [selected, setSelected] = useState([]);
   const [toDelete, setToDelete] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchSubmissions()
+      .then((list) => {
+        if (active && list.length > 0) setRows(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const withReset = (setter) => (value) => {
     setter(value);
@@ -115,10 +128,16 @@ export default function PengajuanList() {
     toast.push(`${source.length} usulan diekspor ke CSV.`);
   };
 
-  const confirmDelete = () => {
-    setRows((prev) => prev.filter((r) => r.id !== toDelete.id));
-    setSelected((prev) => prev.filter((id) => id !== toDelete.id));
-    toast.push(`Draft ${toDelete.id} dihapus.`);
+  const confirmDelete = async () => {
+    const targetId = toDelete.id;
+    try {
+      await deleteSubmission(targetId);
+    } catch {
+      /* tetap hapus dari tampilan jika hanya ada di lokal */
+    }
+    setRows((prev) => prev.filter((r) => r.id !== targetId));
+    setSelected((prev) => prev.filter((id) => id !== targetId));
+    toast.push(`Draft ${targetId} dihapus.`);
     setToDelete(null);
   };
 

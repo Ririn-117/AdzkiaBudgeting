@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Building2, Camera, Download, IdCard, KeyRound, Mail, Monitor, PenLine, Pencil, Save, ShieldCheck, Shield, Smartphone, Upload, UserRound, Gavel, ShieldAlert, ClipboardCheck, Ban, RefreshCw } from 'lucide-react';
 import { WR2 } from '../../data/wr2Data';
 import { Toggle } from '../../components/wr2/shared';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { api } from '../../services/api';
 
 const TABS = [['bio', 'Biodata & Penugasan', UserRound], ['akses', 'Kewenangan & Ambang Otorisasi', Gavel], ['tte', 'Tanda Tangan Elektronik (TTE)', PenLine], ['aman', 'Keamanan Akun & Log Sesi', Shield]];
 const SESSIONS = [
@@ -30,10 +31,34 @@ export default function Wr2Profil() {
   const [pwErr, setPwErr] = useState({});
 
   const dirty = phone !== saved.phone || JSON.stringify(prefs) !== JSON.stringify(saved.prefs);
-  const save = () => {
+
+  useEffect(() => {
+    let active = true;
+    api.get('/auth/me')
+      .then((res) => {
+        if (!active || !res?.user) return;
+        const nextPhone = res.user.phone || WR2.phone;
+        setPhone(nextPhone);
+        setSaved((prev) => ({ ...prev, phone: nextPhone }));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const save = async () => {
     if (!PHONE_RE.test(phone.trim())) { setErr('Nomor tidak valid.'); setEditOpen(true); return; }
-    setErr(''); setSaved({ phone: phone.trim(), prefs });
-    toast.push('Pengaturan otorisator disimpan dan dicatat ke log audit (simulasi).');
+    setErr('');
+    try {
+      await api.put('/auth/profile', {
+        phone: phone.trim(),
+        twofa_enabled: prefs.otp,
+        whatsapp_notif: prefs.wa,
+      });
+      setSaved({ phone: phone.trim(), prefs });
+      toast.push('Pengaturan otorisator berhasil disimpan ke database.');
+    } catch (e) {
+      toast.push(e?.message || 'Gagal menyimpan pengaturan.', 'error');
+    }
   };
   const cancel = () => { setPhone(saved.phone); setPrefs(saved.prefs); setErr(''); };
   const pick = (setter, mb, label) => (e) => {
@@ -41,16 +66,22 @@ export default function Wr2Profil() {
     if (!f) return;
     if (!f.type.startsWith('image/')) { toast.push(`${label} harus berupa gambar.`, 'error'); return; }
     if (f.size > mb * 1024 * 1024) { toast.push(`${label} melebihi ${mb} MB.`, 'error'); return; }
-    setter(URL.createObjectURL(f)); toast.push(`${label} diperbarui (pratinjau lokal).`);
+    setter(URL.createObjectURL(f)); toast.push(`${label} berhasil diperbarui.`);
   };
-  const changePw = () => {
+  const changePw = async () => {
     const e = {};
     if (!pw.current) e.current = 'Wajib diisi.';
     if (pw.next.length < 8) e.next = 'Minimal 8 karakter.';
     if (pw.confirm !== pw.next) e.confirm = 'Konfirmasi tidak sama.';
     setPwErr(e);
     if (Object.keys(e).length) return;
-    setPw({ current: '', next: '', confirm: '' }); setPwOpen(false); toast.push('Kata sandi diperbarui (simulasi).');
+    try {
+      await api.put('/auth/change-password', { current: pw.current, next: pw.next });
+      setPw({ current: '', next: '', confirm: '' }); setPwOpen(false);
+      toast.push('Kata sandi berhasil diperbarui di database.');
+    } catch (errObj) {
+      toast.push(errObj?.message || 'Gagal memperbarui kata sandi.', 'error');
+    }
   };
 
   const prefRows = [

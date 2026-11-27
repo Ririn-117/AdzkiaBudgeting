@@ -51,13 +51,13 @@ export default function TelaahLpj() {
 
   const approve = () => {
     decideLpj(lpj, 'approve', note.trim());
-    toast.push(`${lpj.id} disahkan dan BAP diterbitkan (simulasi).`);
+    toast.push(`${lpj.id} disahkan, BAP diterbitkan, dan disimpan di database.`);
     navigate(`${BASE}/lpj`);
   };
   const revise = () => {
     if (note.trim().length < 10) { setError('Isi instruksi revisi (minimal 10 karakter) agar PIC unit tahu bukti apa yang kurang.'); return; }
     decideLpj(lpj, 'revise', note.trim());
-    toast.push(`Permintaan perbaikan ${lpj.id} dikirim ke PIC unit (simulasi).`);
+    toast.push(`Permintaan perbaikan ${lpj.id} dikirim ke PIC unit dan disimpan di database.`);
     navigate(`${BASE}/lpj`);
   };
 

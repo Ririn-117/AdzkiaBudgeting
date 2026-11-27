@@ -48,7 +48,7 @@ export default function Wr2Keputusan() {
 
   const finish = () => {
     decide([sub], type, note.trim());
-    toast.push(`Keputusan ${sub.id} tercatat (simulasi, belum tersimpan di server).`);
+    toast.push(`Keputusan ${sub.id} berhasil disimpan ke database.`);
     navigate(back);
   };
   const submit = () => {

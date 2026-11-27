@@ -7,6 +7,7 @@ import {
 import { formatRupiah } from '../../utils/format';
 import { formatBytes } from '../../utils/csv';
 import { BASE, CATEGORY_OPTIONS, PAGU_TERSEDIA, REQUIRED_DOCS, SPEND_CATEGORIES } from '../../data/unitData';
+import { createSubmission } from '../../services/unitService';
 import PageHeader from '../../components/ui/PageHeader';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
@@ -116,7 +117,7 @@ export default function PengajuanCreate() {
       accepted.forEach((f) => {
         const type = REQUIRED_DOCS.find((d) => !used.has(d)) ?? 'Lainnya';
         used.add(type);
-        next.push({ id: `${f.name}-${f.size}-${Math.random()}`, name: f.name, size: f.size, type, url: URL.createObjectURL(f) });
+        next.push({ id: `${f.name}-${f.size}-${Math.random()}`, name: f.name, size: f.size, type, url: URL.createObjectURL(f), file: f });
       });
       return next;
     });
@@ -137,17 +138,36 @@ export default function PengajuanCreate() {
     return e;
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ form, items }));
       setSavedAt(new Date());
     } catch {
       /* abaikan */
     }
-    toast.push('Draft disimpan. Unggahan berkas perlu diulang jika halaman ditutup.');
+    try {
+      const created = await createSubmission({
+        ...form,
+        name: form.name.trim() || 'Draft Usulan Kegiatan RKAT',
+        category: form.category || CATEGORY_OPTIONS[0],
+        pic: form.pic.trim() || 'Dr. Rahmat Hidayat, M.Pd',
+        items,
+        docs,
+        submit: false,
+      });
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* abaikan */
+      }
+      toast.push(`Draft ${created.id} berhasil disimpan ke database.`);
+      navigate(`${BASE}/pengajuan`);
+    } catch (err) {
+      toast.push(err?.message || 'Gagal menyimpan draft ke server.', 'error');
+    }
   };
 
-  const submit = () => {
+  const submit = async () => {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) {
@@ -155,12 +175,17 @@ export default function PengajuanCreate() {
       return;
     }
     try {
-      sessionStorage.removeItem(DRAFT_KEY);
-    } catch {
-      /* abaikan */
+      const created = await createSubmission({ ...form, items, docs, submit: true });
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* abaikan */
+      }
+      toast.push(`Pengajuan ${created.id} berhasil dikirim ke BKPU dan tersimpan di database.`);
+      navigate(`${BASE}/pengajuan`);
+    } catch (err) {
+      toast.push(err?.message || 'Gagal mengirim pengajuan ke server.', 'error');
     }
-    toast.push('Pengajuan dikirim ke BKPU (simulasi, belum tersimpan di server).');
-    navigate(`${BASE}/pengajuan`);
   };
 
   return (

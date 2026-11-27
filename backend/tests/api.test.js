@@ -10,7 +10,8 @@ import { createApp } from '../src/app.js';
 
 let server;
 let baseUrl;
-const testDbPath = path.resolve(path.dirname(env.dbPath), 'test-ebudgeting.sqlite');
+const originalDbName = env.dbName;
+const testDbName = 'adzkia_ebudgeting_test';
 
 async function api(urlPath, { method = 'GET', token, body, formData } = {}) {
   const headers = {};
@@ -43,8 +44,7 @@ async function loginAs(identifier, role) {
 
 describe('Adzkia E-Budgeting Backend API (Tahap 4 & Tahap 5)', () => {
   before(async () => {
-    env.dbPath = testDbPath;
-    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+    env.dbName = testDbName;
     seedIfEmpty({ force: true });
     const app = createApp();
     await new Promise((resolve) => {
@@ -61,10 +61,7 @@ describe('Adzkia E-Budgeting Backend API (Tahap 4 & Tahap 5)', () => {
       await new Promise((resolve) => server.close(resolve));
     }
     closeDb();
-    for (const suffix of ['', '-wal', '-shm']) {
-      const f = `${testDbPath}${suffix}`;
-      if (fs.existsSync(f)) fs.unlinkSync(f);
-    }
+    env.dbName = originalDbName;
   });
 
   it('GET /api/health returns ok', async () => {
@@ -85,7 +82,40 @@ describe('Adzkia E-Budgeting Backend API (Tahap 4 & Tahap 5)', () => {
       body: { fullName: 'Dosen Baru', email: 'dosen.baru@adzkia.ac.id', unit: 'prodi-pgmi', role: 'unit_prodi', password: 'password123' },
     });
     assert.equal(reg.status, 201);
+    assert.equal(reg.data.user.status, 'aktif');
 
+    // Akun Unit/Prodi hasil daftar mandiri langsung bisa login
+    const selfLogin = await api('/api/auth/login', {
+      method: 'POST',
+      body: { identifier: 'dosen.baru@adzkia.ac.id', password: 'password123', role: 'unit_prodi' },
+    });
+    assert.equal(selfLogin.status, 200);
+    assert.ok(selfLogin.data.token);
+
+    // Role pimpinan menunggu persetujuan Administrator
+    const regBkpu = await api('/api/auth/register', {
+      method: 'POST',
+      body: { fullName: 'Staf Baru', email: 'staf.baru@adzkia.ac.id', unit: 'unit-bapk', role: 'bkpu', password: 'password123' },
+    });
+    assert.equal(regBkpu.status, 201);
+    assert.equal(regBkpu.data.user.status, 'pending');
+    const pendingLogin = await api('/api/auth/login', {
+      method: 'POST',
+      body: { identifier: 'staf.baru@adzkia.ac.id', password: 'password123', role: 'bkpu' },
+    });
+    assert.equal(pendingLogin.status, 403);
+
+    // Administrator tidak boleh daftar mandiri, email non-institusi ditolak
+    const regAdmin = await api('/api/auth/register', {
+      method: 'POST',
+      body: { fullName: 'X', email: 'x@adzkia.ac.id', unit: 'unit-bapk', role: 'administrator', password: 'password123' },
+    });
+    assert.equal(regAdmin.status, 400);
+    const regGmail = await api('/api/auth/register', {
+      method: 'POST',
+      body: { fullName: 'Y', email: 'y@gmail.com', unit: 'prodi-pgmi', role: 'unit_prodi', password: 'password123' },
+    });
+    assert.equal(regGmail.status, 400);
     const fp = await api('/api/auth/forgot-password', {
       method: 'POST',
       body: { email: 'unit@adzkia.ac.id' },

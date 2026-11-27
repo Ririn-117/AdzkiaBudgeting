@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Banknote, Building2, CalendarDays, CheckCircle2, Download, Eye, FileCheck2, History,
@@ -7,6 +7,7 @@ import {
 import { formatRupiah } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
 import { BASE, DEFAULT_TA, DISBURSEMENTS, DISBURSEMENT_SUMMARY as S, SUBMISSIONS, TA_OPTIONS } from '../../data/unitData';
+import { fetchDisbursements, createDisbursement, fetchSubmissions } from '../../services/unitService';
 import PageHeader from '../../components/ui/PageHeader';
 import SummaryCard from '../../components/ui/SummaryCard';
 import Pagination from '../../components/ui/Pagination';
@@ -20,6 +21,7 @@ const TERMINS = ['Termin 1 - Uang Muka', 'Termin 2 - Pelunasan'];
 export default function Pencairan() {
   const toast = useToast();
   const [rows, setRows] = useState(DISBURSEMENTS);
+  const [approvedList, setApprovedList] = useState(() => SUBMISSIONS.filter((s) => s.status === 'disetujui'));
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [ta, setTa] = useState(DEFAULT_TA);
@@ -29,7 +31,24 @@ export default function Pencairan() {
   const [req, setReq] = useState({ ref: '', termin: TERMINS[0], amount: '' });
   const [reqErr, setReqErr] = useState({});
 
-  const approved = SUBMISSIONS.filter((s) => s.status === 'disetujui');
+  useEffect(() => {
+    let active = true;
+    fetchDisbursements()
+      .then(({ rows: dbRows }) => {
+        if (active && dbRows.length > 0) setRows(dbRows);
+      })
+      .catch(() => {});
+    fetchSubmissions({ status: 'disetujui' })
+      .then((list) => {
+        if (active && list.length > 0) setApprovedList(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const approved = approvedList;
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -51,7 +70,7 @@ export default function Pencairan() {
     toast.push('Data pencairan diekspor ke CSV.');
   };
 
-  const submitRequest = () => {
+  const submitRequest = async () => {
     const e = {};
     const target = approved.find((s) => s.id === req.ref);
     if (!target) e.ref = 'Pilih kegiatan yang sudah disetujui.';
@@ -61,28 +80,15 @@ export default function Pencairan() {
     setReqErr(e);
     if (Object.keys(e).length) return;
 
-    const next = {
-      id: `PC-2025-${String(rows.length + 4).padStart(3, '0')}`,
-      date: '12 Apr 2025',
-      activity: target.title,
-      ref: target.id,
-      unit: 'FTK Adzkia',
-      approved: target.total,
-      termin: req.termin.split(' - ')[0],
-      terminNote: req.termin.split(' - ')[1],
-      amount,
-      receipt: 'Kuitansi menunggu nomor',
-      bank: 'BSI Virtual Account Operasional PGMI',
-      account: '8871092831',
-      status: 'proses',
-      statusLabel: 'Menunggu Verifikasi Kasir',
-      statusNote: 'Diajukan hari ini',
-      sp2d: 'Belum terbit',
-    };
-    setRows((prev) => [next, ...prev]);
-    setReq({ ref: '', termin: TERMINS[0], amount: '' });
-    setReqOpen(false);
-    toast.push(`Pengajuan pencairan ${next.id} dicatat (simulasi, belum tersimpan di server).`);
+    try {
+      const created = await createDisbursement({ ref: target.id, termin: req.termin, amount });
+      setRows((prev) => [created, ...prev]);
+      setReq({ ref: '', termin: TERMINS[0], amount: '' });
+      setReqOpen(false);
+      toast.push(`Pengajuan pencairan ${created.id} berhasil disimpan ke database.`);
+    } catch (err) {
+      toast.push(err?.message || 'Gagal mengajukan pencairan.', 'error');
+    }
   };
 
   return (

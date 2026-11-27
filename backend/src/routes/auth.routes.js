@@ -37,7 +37,10 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ message: 'Email/username atau kata sandi salah.' });
   }
   if (found.status !== 'aktif') {
-    return res.status(403).json({ message: 'Akun Anda belum aktif atau sedang dinonaktifkan.' });
+    const msg = found.status === 'pending'
+      ? 'Akun Anda masih menunggu verifikasi Administrator. Silakan coba lagi setelah akun disetujui.'
+      : 'Akun Anda belum aktif atau sedang dinonaktifkan.';
+    return res.status(403).json({ message: msg });
   }
   if (role && found.role !== role) {
     return res.status(403).json({ message: 'Peran yang dipilih tidak sesuai dengan akun Anda.' });
@@ -84,35 +87,62 @@ router.post('/register', (req, res) => {
 
   const db = getDb();
   const cleanEmail = String(email).trim().toLowerCase();
+  if (!/^[^\s@]+@adzkia\.ac\.id$/i.test(cleanEmail)) {
+    return res.status(400).json({ message: 'Gunakan email institusi berakhiran @adzkia.ac.id.' });
+  }
   const exists = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
   if (exists) {
     return res.status(409).json({ message: 'Email tersebut sudah terdaftar.' });
   }
 
+  // Administrator tidak boleh didaftarkan secara mandiri.
+  const selfRegisterRoles = Object.values(ROLES).filter((r) => r !== ROLES.ADMINISTRATOR);
+  if (role && !selfRegisterRoles.includes(role)) {
+    return res.status(400).json({ message: 'Role yang diajukan tidak valid untuk pendaftaran mandiri.' });
+  }
+  const assignedRole = role || ROLES.UNIT_PRODI;
+
   let unitId = null;
   if (unit) {
     const unitRow = db.prepare('SELECT id FROM units WHERE code = ? OR name = ?').get(unit, unit);
-    if (unitRow) unitId = unitRow.id;
+    if (!unitRow) {
+      return res.status(400).json({ message: 'Unit / program studi tidak ditemukan.' });
+    }
+    unitId = unitRow.id;
+  }
+  if (assignedRole === ROLES.UNIT_PRODI && !unitId) {
+    return res.status(400).json({ message: 'Unit / program studi wajib dipilih untuk role Unit/Prodi.' });
   }
 
-  const baseUsername = cleanEmail.split('@')[0].replace(/[^a-z0-9._-]/g, '');
-  const username = `${baseUsername}-${Math.floor(100 + Math.random() * 900)}`;
+  // Username unik dari bagian depan email (tanpa akhiran acak jika masih tersedia).
+  const baseUsername = cleanEmail.split('@')[0].replace(/[^a-z0-9._-]/g, '') || 'user';
+  let username = baseUsername;
+  const usernameTaken = db.prepare('SELECT 1 FROM users WHERE LOWER(username) = ?');
+  for (let i = 2; usernameTaken.get(username); i += 1) {
+    username = `${baseUsername}${i}`;
+  }
+
   const hash = bcrypt.hashSync(String(password), 10);
-  const assignedRole = Object.values(ROLES).includes(role) ? role : ROLES.UNIT_PRODI;
+
+  // Unit/Prodi langsung aktif; role pimpinan/keuangan menunggu persetujuan Administrator.
+  const autoActive = assignedRole === ROLES.UNIT_PRODI;
+  const status = autoActive ? 'aktif' : 'pending';
 
   const info = db.prepare(`
     INSERT INTO users (username, email, password_hash, name, role, unit_id, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'pending')
-  `).run(username, cleanEmail, hash, String(fullName).trim(), assignedRole, unitId);
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(username, cleanEmail, hash, String(fullName).trim(), assignedRole, unitId, status);
 
   createNotification({
     roleTarget: ROLES.ADMINISTRATOR,
-    category: 'info',
+    category: autoActive ? 'info' : 'tindakan',
     tag: 'PENDAFTARAN BARU',
     tagTone: 'navy',
     refCode: `USR-${info.lastInsertRowid}`,
     title: `Pendaftaran Akun Baru: ${fullName}`,
-    body: `Pengguna **${fullName}** (${cleanEmail}) mengajukan pendaftaran akun dengan peran **${assignedRole}**.`,
+    body: autoActive
+      ? `Pengguna **${fullName}** (${cleanEmail}) mendaftar dengan peran **${assignedRole}** dan akun langsung aktif.`
+      : `Pengguna **${fullName}** (${cleanEmail}) mengajukan pendaftaran akun dengan peran **${assignedRole}** dan menunggu persetujuan.`,
     accent: 'navy',
     icon: 'badge',
   });
@@ -123,13 +153,16 @@ router.post('/register', (req, res) => {
     userRole: assignedRole,
     module: 'Autentikasi',
     action: 'register',
-    title: 'Pendaftaran akun diajukan',
-    detail: `Email: ${cleanEmail}`,
+    title: autoActive ? 'Pendaftaran akun (langsung aktif)' : 'Pendaftaran akun diajukan',
+    detail: `Email: ${cleanEmail}, username: ${username}`,
     ipAddress: req.ip || '127.0.0.1',
   });
 
   res.status(201).json({
-    message: 'Pendaftaran berhasil diajukan. Akun Anda akan diverifikasi oleh Administrator sebelum dapat digunakan.',
+    message: autoActive
+      ? `Pendaftaran berhasil. Akun Anda sudah aktif, silakan masuk menggunakan email ${cleanEmail} atau username "${username}".`
+      : 'Pendaftaran berhasil diajukan. Akun Anda akan diverifikasi oleh Administrator sebelum dapat digunakan.',
+    user: { username, email: cleanEmail, role: assignedRole, status },
   });
 });
 

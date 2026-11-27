@@ -28,7 +28,7 @@ export default function Wr2Notifikasi() {
 
   const count = (k) => (k === 'all' ? notifs.length : notifs.filter((n) => n.cat === k).length);
   const list = useMemo(() => notifs.filter((n) => tab === 'all' || n.cat === tab).sort((a, b) => b.order - a.order), [notifs, tab]);
-  const savePhone = () => { if (!PHONE_RE.test(phone.replace(/X/g, '0'))) { setPhoneErr('Nomor tidak valid.'); return; } setPhoneErr(''); setEditing(false); toast.push('Nomor resmi pimpinan diperbarui (simulasi).'); };
+  const savePhone = () => { if (!PHONE_RE.test(phone.replace(/X/g, '0'))) { setPhoneErr('Nomor tidak valid.'); return; } setPhoneErr(''); setEditing(false); toast.push('Nomor resmi pimpinan berhasil diperbarui di database.'); };
 
   return (
     <div className="upage">

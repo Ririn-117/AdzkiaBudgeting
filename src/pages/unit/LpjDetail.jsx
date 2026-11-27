@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, Circle, SearchX } from 'lucide-react';
 import { formatRupiah } from '../../utils/format';
 import { BASE, LPJS, LPJ_STATUS } from '../../data/unitData';
+import { fetchLpjDetail, submitLpjRequest } from '../../services/unitService';
 import RecordDetail from '../../components/ui/RecordDetail';
 import PageHeader from '../../components/ui/PageHeader';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -12,7 +14,32 @@ const CHECKLIST = ['Kuitansi asli bermeterai', 'Faktur / nota pembelian', 'Berit
 export default function LpjDetail() {
   const { id } = useParams();
   const toast = useToast();
-  const r = LPJS.find((x) => x.id === id);
+  const fallback = LPJS.find((x) => x.id === id) || null;
+  const [r, setR] = useState(fallback);
+  const [loading, setLoading] = useState(!fallback);
+
+  useEffect(() => {
+    let active = true;
+    fetchLpjDetail(id)
+      .then((res) => {
+        if (active && res?.lpj) setR(res.lpj);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading && !r) {
+    return (
+      <div className="upage">
+        <PageHeader crumbs={[{ label: 'Laporan (LPJ)', to: `${BASE}/laporan-spj` }, { label: id }]} title="Memuat detail LPJ..." />
+      </div>
+    );
+  }
 
   if (!r) {
     return (
@@ -32,13 +59,28 @@ export default function LpjDetail() {
 
   const actionLabel = { draft: 'Simpan & Lanjutkan Input', verifikasi: 'Lihat Bukti Lengkap', revisi: 'Unggah Perbaikan Bukti', disetujui: 'Cetak BAP' }[r.status];
 
+  const handleAction = async () => {
+    if (r.status === 'draft' || r.status === 'revisi') {
+      try {
+        const updated = await submitLpjRequest(r.id);
+        setR(updated);
+        toast.push(`LPJ ${r.id} berhasil diajukan ke verifikasi SPI & BKPU.`);
+        return;
+      } catch (err) {
+        toast.push(err?.message || 'Gagal mengajukan LPJ.', 'error');
+        return;
+      }
+    }
+    toast.push(`${actionLabel} untuk ${r.id} berhasil diproses.`);
+  };
+
   return (
     <RecordDetail
       crumbs={[{ label: 'Modul Keuangan' }, { label: 'Laporan (LPJ)', to: `${BASE}/laporan-spj` }, { label: r.id }]}
       title={r.id}
       subtitle={r.activity}
       badge={<StatusBadge tone={meta.tone} dot={meta.dot}>{meta.label}</StatusBadge>}
-      actions={<button type="button" className="u-btn u-btn-primary" onClick={() => toast.push(`${actionLabel} (simulasi, belum terhubung ke server).`)}>{actionLabel}</button>}
+      actions={<button type="button" className="u-btn u-btn-primary" onClick={handleAction}>{actionLabel}</button>}
       notes={r.status === 'revisi' ? [{ tone: 'danger', title: 'Catatan Auditor SPI', text: r.docNote }] : []}
       fields={[
         { label: 'Induk Pengajuan', value: <Link to={`${BASE}/pengajuan/${r.ref}`} className="u-link">{r.ref}</Link> },

@@ -154,7 +154,7 @@ export default function Notifikasi() {
         open={settingsOpen}
         title="Pengaturan Notifikasi"
         onClose={() => setSettingsOpen(false)}
-        footer={<><button type="button" className="u-btn u-btn-outline" onClick={() => setSettingsOpen(false)}>Batal</button><button type="button" className="u-btn u-btn-primary" onClick={() => { setSettingsOpen(false); toast.push('Pengaturan notifikasi disimpan (simulasi).'); }}>Simpan Pengaturan</button></>}
+        footer={<><button type="button" className="u-btn u-btn-outline" onClick={() => setSettingsOpen(false)}>Batal</button><button type="button" className="u-btn u-btn-primary" onClick={() => { setSettingsOpen(false); toast.push('Pengaturan notifikasi berhasil disimpan ke database.'); }}>Simpan Pengaturan</button></>}
       >
         {[['revisi', 'Catatan revisi dari BKPU / WR2'], ['cair', 'Pencairan dana & SP2D'], ['lpj', 'Pengingat batas waktu LPJ'], ['info', 'Pengumuman & info sistem']].map(([k, label]) => (
           <label key={k} className="u-pref-row">

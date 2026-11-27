@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle, BadgeCheck, BellRing, Check, CheckCircle2, Clock, Copy, Download, Eye, FileClock, Hourglass,
@@ -7,6 +7,7 @@ import {
 import { formatRupiah } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
 import { BASE, DEFAULT_TA, LPJS, LPJ_STATUS, LPJ_SUMMARY as S, SUBMISSIONS, TA_OPTIONS } from '../../data/unitData';
+import { fetchLpjs, createLpjRequest, fetchSubmissions } from '../../services/unitService';
 import PageHeader from '../../components/ui/PageHeader';
 import SummaryCard from '../../components/ui/SummaryCard';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -20,6 +21,7 @@ const ACCOUNT = '7182-9901-2244';
 export default function Lpj() {
   const toast = useToast();
   const [rows, setRows] = useState(LPJS);
+  const [approvedSubs, setApprovedSubs] = useState(() => SUBMISSIONS.filter((s) => s.status === 'disetujui'));
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [ta, setTa] = useState(DEFAULT_TA);
@@ -27,6 +29,23 @@ export default function Lpj() {
   const [open, setOpen] = useState(false);
   const [ref, setRef] = useState('');
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetchLpjs()
+      .then(({ rows: dbRows }) => {
+        if (active && dbRows.length > 0) setRows(dbRows);
+      })
+      .catch(() => {});
+    fetchSubmissions({ status: 'disetujui' })
+      .then((list) => {
+        if (active && list.length > 0) setApprovedSubs(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -63,18 +82,17 @@ export default function Lpj() {
     toast.push('Format kuitansi diunduh.');
   };
 
-  const createLpj = () => {
-    const target = SUBMISSIONS.find((s) => s.id === ref);
+  const createLpj = async () => {
+    const target = approvedSubs.find((s) => s.id === ref);
     if (!target) { setErr('Pilih kegiatan yang sudah disetujui.'); return; }
-    const next = {
-      id: `LPJ-2025-${String(rows.length + 5).padStart(3, '0')}`,
-      date: '12 Apr 2025 • 10:00 WIB', chip: 'DRAFT LOKAL', chipTone: 'blue', activity: target.title, ref: target.id,
-      extra: 'Termin Tunggal', dana: 0, realisasi: 0, silpa: 0, docs: '0 dari 6 Berkas', progress: 0,
-      docNote: 'Belum ada bukti diunggah', status: 'draft', action: 'Lanjutkan Input',
-    };
-    setRows((p) => [next, ...p]);
-    setOpen(false); setRef(''); setErr('');
-    toast.push(`${next.id} dibuat sebagai draft (simulasi).`);
+    try {
+      const created = await createLpjRequest({ ref: target.id });
+      setRows((p) => [created, ...p]);
+      setOpen(false); setRef(''); setErr('');
+      toast.push(`${created.id} berhasil dibuat di database.`);
+    } catch (e) {
+      toast.push(e?.message || 'Gagal membuat LPJ di server.', 'error');
+    }
   };
 
   const actionIcon = { draft: Pencil, verifikasi: Eye, revisi: Wrench, disetujui: Printer };
@@ -214,7 +232,7 @@ export default function Lpj() {
           <label className="u-label" htmlFor="l-ref">Kegiatan yang disetujui</label>
           <select id="l-ref" className={`u-select ${err ? 'invalid' : ''}`} value={ref} onChange={(e) => { setRef(e.target.value); setErr(''); }}>
             <option value="">Pilih kegiatan</option>
-            {SUBMISSIONS.filter((s) => s.status === 'disetujui').map((s) => <option key={s.id} value={s.id}>{s.id} - {s.title}</option>)}
+            {approvedSubs.map((s) => <option key={s.id} value={s.id}>{s.id} - {s.title}</option>)}
           </select>
           {err && <p className="u-err">{err}</p>}
         </div>

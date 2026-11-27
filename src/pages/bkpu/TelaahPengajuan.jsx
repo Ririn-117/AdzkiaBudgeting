@@ -48,19 +48,19 @@ export default function TelaahPengajuan() {
   const forward = () => {
     if (done < CHECKLIST_TEXT.length) { setError('Seluruh poin kepatuhan administrasi harus terpenuhi sebelum diteruskan ke WR II.'); return; }
     decideSubmission(sub, 'forward', note.trim());
-    toast.push(`${sub.id} diteruskan ke Wakil Rektor II (simulasi).`);
+    toast.push(`${sub.id} berhasil diteruskan ke Wakil Rektor II dan disimpan di database.`);
     navigate(back);
   };
   const revise = () => {
     if (note.trim().length < 10) { setError('Isi catatan perbaikan (minimal 10 karakter) agar unit tahu apa yang harus direvisi.'); return; }
     decideSubmission(sub, 'revise', note.trim());
-    toast.push(`Permintaan revisi ${sub.id} dikirim ke unit (simulasi).`);
+    toast.push(`Permintaan revisi ${sub.id} berhasil dikirim ke unit dan disimpan di database.`);
     navigate(back);
   };
   const reject = () => {
     if (reason.trim().length < 10) return;
     decideSubmission(sub, 'reject', reason.trim());
-    toast.push(`${sub.id} ditolak (simulasi).`);
+    toast.push(`${sub.id} ditolak dan tercatat di database.`);
     setRejectOpen(false);
     navigate(back);
   };
