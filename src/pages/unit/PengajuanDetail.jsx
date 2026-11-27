@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Banknote, ClipboardCheck, FilePen, SearchX } from 'lucide-react';
 import { formatRupiah } from '../../utils/format';
 import { BASE, SUBMISSIONS, SUBMISSION_STATUS, buildRab } from '../../data/unitData';
+import { fetchSubmissionDetail } from '../../services/unitService';
 import RecordDetail from '../../components/ui/RecordDetail';
 import StatusBadge from '../../components/ui/StatusBadge';
 import PageHeader from '../../components/ui/PageHeader';
@@ -27,7 +29,37 @@ const TIMELINES = {
 
 export default function PengajuanDetail() {
   const { id } = useParams();
-  const s = SUBMISSIONS.find((x) => x.id === id);
+  const fallback = SUBMISSIONS.find((x) => x.id === id) || null;
+  const [s, setS] = useState(fallback);
+  const [dbItems, setDbItems] = useState(null);
+  const [dbTimeline, setDbTimeline] = useState(null);
+  const [loading, setLoading] = useState(!fallback);
+
+  useEffect(() => {
+    let active = true;
+    fetchSubmissionDetail(id)
+      .then((res) => {
+        if (!active) return;
+        setS(res.submission);
+        if (res.items?.length) setDbItems(res.items);
+        if (res.timelines?.length) setDbTimeline(res.timelines);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading && !s) {
+    return (
+      <div className="upage">
+        <PageHeader crumbs={[{ label: 'Dashboard', to: BASE }, { label: 'Daftar Pengajuan', to: `${BASE}/pengajuan` }, { label: id }]} title="Memuat detail pengajuan..." />
+      </div>
+    );
+  }
 
   if (!s) {
     return (
@@ -42,8 +74,11 @@ export default function PengajuanDetail() {
     );
   }
 
-  const meta = SUBMISSION_STATUS[s.status];
-  const rab = buildRab(s.total);
+  const meta = SUBMISSION_STATUS[s.status] || SUBMISSION_STATUS.draft;
+  const rab = dbItems && dbItems.length > 0 ? dbItems : buildRab(s.total);
+  const timelineList = dbTimeline && dbTimeline.length > 0
+    ? dbTimeline
+    : (TIMELINES[s.status] ? TIMELINES[s.status](s) : TIMELINES.draft(s));
 
   let actions = <Link to={`${BASE}/pengajuan`} className="u-btn u-btn-outline">Kembali ke Daftar</Link>;
   if (s.status === 'revisi') actions = <Link to={`${BASE}/pengajuan/baru`} className="u-btn u-btn-primary"><FilePen size={15} /> Perbaiki Usulan</Link>;
@@ -74,7 +109,7 @@ export default function PengajuanDetail() {
         { label: 'Sumber Dana', value: s.source },
         { label: 'Total RAB', value: formatRupiah(s.total), wide: true },
       ]}
-      timeline={TIMELINES[s.status](s)}
+      timeline={timelineList}
     >
       <section className="card">
         <h2 className="u-h2">Ringkasan Rincian Anggaran (RAB)</h2>
@@ -83,7 +118,7 @@ export default function PengajuanDetail() {
             <thead><tr><th>No</th><th>Komponen</th><th>Kategori Belanja</th><th className="num">Subtotal</th></tr></thead>
             <tbody>
               {rab.map((r, i) => (
-                <tr key={r.name}>
+                <tr key={r.id ?? `${r.name}-${i}`}>
                   <td>{i + 1}</td><td className="u-cell-title">{r.name}</td><td>{r.cat}</td><td className="num strong">{formatRupiah(r.subtotal)}</td>
                 </tr>
               ))}
@@ -91,7 +126,6 @@ export default function PengajuanDetail() {
             <tfoot><tr><td colSpan={3}>Total</td><td className="num">{formatRupiah(rab.reduce((a, r) => a + r.subtotal, 0))}</td></tr></tfoot>
           </table>
         </div>
-        <p className="u-hint" style={{ marginTop: '0.7rem' }}>Rincian ini data contoh. Rincian asli akan dimuat dari server setelah backend terhubung.</p>
       </section>
     </RecordDetail>
   );

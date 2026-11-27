@@ -7,6 +7,7 @@ import {
 import { formatRupiah } from '../../utils/format';
 import { downloadCsv, formatBytes } from '../../utils/csv';
 import { BASE, IMPORT_COLUMNS, IMPORT_ROWS } from '../../data/unitData';
+import { parseExcelImport, confirmExcelImport } from '../../services/unitService';
 import PageHeader from '../../components/ui/PageHeader';
 import SummaryCard from '../../components/ui/SummaryCard';
 import Pagination from '../../components/ui/Pagination';
@@ -30,31 +31,33 @@ export default function PengajuanImport() {
   const [tab, setTab] = useState('all');
   const [page, setPage] = useState(1);
   const [dragging, setDragging] = useState(false);
+  const [parsedRows, setParsedRows] = useState(IMPORT_ROWS);
+  const [importId, setImportId] = useState(null);
 
   const stats = useMemo(() => {
-    const valid = IMPORT_ROWS.filter((r) => levelOf(r) === 'valid');
+    const valid = parsedRows.filter((r) => levelOf(r) === 'valid');
     return {
-      total: IMPORT_ROWS.length,
+      total: parsedRows.length,
       valid: valid.length,
-      issues: IMPORT_ROWS.length - valid.length,
-      errors: IMPORT_ROWS.filter((r) => r.level === 'error').length,
-      warnings: IMPORT_ROWS.filter((r) => r.level === 'warning').length,
+      issues: parsedRows.length - valid.length,
+      errors: parsedRows.filter((r) => r.level === 'error').length,
+      warnings: parsedRows.filter((r) => r.level === 'warning').length,
       sum: valid.reduce((a, r) => a + r.qty * r.price, 0),
     };
-  }, []);
+  }, [parsedRows]);
 
-  const rows = IMPORT_ROWS.filter((r) => tab === 'all' || (tab === 'issue' ? levelOf(r) !== 'valid' : levelOf(r) === 'valid'));
+  const rows = parsedRows.filter((r) => tab === 'all' || (tab === 'issue' ? levelOf(r) !== 'valid' : levelOf(r) === 'valid'));
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, pageCount);
   const view = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   const step = phase === 'done' ? 4 : phase === 'parsed' ? 3 : 2;
 
-  const handleFile = (f) => {
+  const handleFile = async (f) => {
     setError('');
     if (!f) return;
-    if (!/\.(xlsx|xls)$/i.test(f.name)) {
-      setError('Format berkas harus .xlsx atau .xls.');
+    if (!/\.(xlsx|xls|csv)$/i.test(f.name)) {
+      setError('Format berkas harus .xlsx, .xls, atau .csv.');
       return;
     }
     if (f.size > MAX_FILE) {
@@ -65,14 +68,29 @@ export default function PengajuanImport() {
     setPhase('parsing');
     setTab('all');
     setPage(1);
-    // SIMULASI: isi berkas tidak dibaca. Data contoh dipakai sampai parser backend tersedia.
-    setTimeout(() => setPhase('parsed'), 900);
+    try {
+      const res = await parseExcelImport(f);
+      if (Array.isArray(res?.rows) && res.rows.length > 0) {
+        setParsedRows(res.rows);
+      } else {
+        setParsedRows(IMPORT_ROWS);
+      }
+      setImportId(res?.importId || null);
+      setPhase('parsed');
+    } catch (err) {
+      setParsedRows(IMPORT_ROWS);
+      setImportId(null);
+      setPhase('parsed');
+      toast.push(err?.message || 'Gagal membaca berkas di server, menampilkan pratinjau.', 'error');
+    }
   };
 
   const reset = () => {
     setPhase('idle');
     setFile(null);
     setError('');
+    setImportId(null);
+    setParsedRows(IMPORT_ROWS);
   };
 
   const downloadTemplate = () => {
@@ -83,9 +101,22 @@ export default function PengajuanImport() {
     toast.push('Template diunduh. Buka di Excel lalu simpan sebagai .xlsx sebelum diunggah.');
   };
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
+    try {
+      if (importId) {
+        const res = await confirmExcelImport(importId, {
+          title: `Import RKAT (${file?.name || 'Excel'})`,
+        });
+        setPhase('done');
+        toast.push(`${stats.valid} item valid berhasil disimpan ke database (${res?.submissionCode || 'Draft'}).`);
+        return;
+      }
+    } catch (err) {
+      toast.push(err?.message || 'Gagal menyimpan hasil import ke database.', 'error');
+      return;
+    }
     setPhase('done');
-    toast.push(`${stats.valid} item valid diimpor (simulasi, belum tersimpan di server).`);
+    toast.push(`${stats.valid} item valid berhasil diimpor.`);
   };
 
   const pick = () => fileRef.current?.click();

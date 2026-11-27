@@ -1,14 +1,41 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowRight, SearchX } from 'lucide-react';
 import { formatRupiah } from '../../utils/format';
 import { BASE, DISBURSEMENTS } from '../../data/unitData';
+import { fetchDisbursementDetail } from '../../services/unitService';
 import RecordDetail from '../../components/ui/RecordDetail';
 import PageHeader from '../../components/ui/PageHeader';
 import StatusBadge from '../../components/ui/StatusBadge';
 
 export default function PencairanDetail() {
   const { id } = useParams();
-  const r = DISBURSEMENTS.find((x) => x.id === id);
+  const fallback = DISBURSEMENTS.find((x) => x.id === id) || null;
+  const [r, setR] = useState(fallback);
+  const [loading, setLoading] = useState(!fallback);
+
+  useEffect(() => {
+    let active = true;
+    fetchDisbursementDetail(id)
+      .then((res) => {
+        if (active && res) setR(res);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading && !r) {
+    return (
+      <div className="upage">
+        <PageHeader crumbs={[{ label: 'Pencairan Dana', to: `${BASE}/pencairan` }, { label: id }]} title="Memuat detail pencairan..." />
+      </div>
+    );
+  }
 
   if (!r) {
     return (

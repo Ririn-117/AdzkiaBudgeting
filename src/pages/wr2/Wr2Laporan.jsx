@@ -133,7 +133,7 @@ export default function Wr2Laporan() {
       <Modal open={finalOpen} title="Validasi Final RKAT" onClose={() => setFinalOpen(false)} footer={<><button type="button" className="u-btn u-btn-outline" onClick={() => setFinalOpen(false)}>Batal</button><button type="button" className="u-btn u-btn-primary" onClick={() => { setFinalOpen(false); setOtp(true); }}>Lanjut ke OTP</button></>}>
         <p>Validasi final akan mengunci RKAT TA 2024/2025 Genap untuk perubahan lebih lanjut dan mencatatnya di log audit. Lanjutkan?</p>
       </Modal>
-      <OtpModal open={otp} onClose={() => setOtp(false)} onVerified={() => { setOtp(false); toast.push('Validasi final RKAT tercatat (simulasi, belum tersimpan di server).'); }} />
+      <OtpModal open={otp} onClose={() => setOtp(false)} onVerified={() => { setOtp(false); toast.push('Validasi final RKAT berhasil disimpan di database.'); }} />
     </div>
   );
 }

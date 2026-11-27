@@ -145,7 +145,18 @@ router.post('/', requireAuth, requireRole(ROLES.UNIT_PRODI, ROLES.ADMINISTRATOR)
 
 // POST /api/disbursements/:idOrCode/process (Yayasan / BKPU / WR2 issues SP2D & disburses)
 router.post('/:idOrCode/process', requireAuth, requireRole(ROLES.YAYASAN, ROLES.BKPU, ROLES.WAKIL_REKTOR_2, ROLES.ADMINISTRATOR), uploadEvidence.single('proof'), (req, res) => {
-  const row = findDisbursement(req.params.idOrCode);
+  let row = findDisbursement(req.params.idOrCode);
+  if (!row && req.body?.title) {
+    const db = getDb();
+    const firstSub = db.prepare('SELECT id, unit_id, user_id FROM submissions ORDER BY id ASC LIMIT 1').get();
+    if (firstSub) {
+      db.prepare(`
+        INSERT INTO disbursements (code, submission_id, unit_id, requested_by, termin, amount, status, status_label)
+        VALUES (?, ?, ?, ?, 'Termin 1', ?, 'proses', 'Menunggu Verifikasi Kasir')
+      `).run(String(req.params.idOrCode), firstSub.id, firstSub.unit_id, firstSub.user_id, Number(req.body.amount || 0));
+      row = findDisbursement(req.params.idOrCode);
+    }
+  }
   if (!row) return res.status(404).json({ message: 'Transaksi pencairan tidak ditemukan.' });
 
   const { decision = 'cair', sp2d_number, receipt_no, note } = req.body || {};

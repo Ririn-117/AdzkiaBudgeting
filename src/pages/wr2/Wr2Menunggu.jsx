@@ -45,7 +45,7 @@ export default function Wr2Menunggu() {
 
   const finish = () => {
     decide(chosen, 'setuju', 'Disetujui kolektif sesuai telaah BKPU.');
-    toast.push(`${chosen.length} usulan disetujui kolektif (simulasi).`);
+    toast.push(`${chosen.length} usulan disetujui kolektif dan disimpan di database.`);
     setSel([]); setBulk(false); setOtp(false); setTte(false);
   };
   const confirmBulk = () => {

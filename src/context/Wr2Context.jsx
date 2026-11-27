@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { INITIAL_LOGS, INITIAL_NOTIFS, INITIAL_SUBMISSIONS } from '../data/wr2Data';
+import { api } from '../services/api';
+import { formatShortDate } from '../services/unitService';
 
 const Ctx = createContext(null);
 
@@ -11,16 +13,92 @@ const stamp = () => {
   };
 };
 
+function mapDbSubmissionToWr2(s) {
+  let stage = 'menunggu';
+  let result = undefined;
+  if (s.status === 'disetujui') {
+    stage = 'disetujui';
+    result = 'setuju';
+  } else if (s.status === 'revisi') {
+    stage = 'revisi';
+    result = 'revisi';
+  } else if (s.status === 'ditolak') {
+    stage = 'ditolak';
+    result = 'tolak';
+  }
+  const dt = formatShortDate(s.submitted_at || s.created_at);
+  return {
+    id: s.code,
+    unit: s.unit_name || 'Prodi S1 PGMI',
+    faculty: 'Fakultas Tarbiyah (FTK)',
+    fc: 'FTK',
+    title: s.title,
+    pic: s.pic,
+    amount: Number(s.total_amount || 0),
+    mak: 'MAK: 521211 (Bahan)',
+    fund: s.source || 'Pagu RKAT Prodi',
+    date: dt,
+    time: '09:15',
+    entry: dt,
+    entryTime: '09:15 WIB',
+    wait: 1,
+    docs: [3, 3],
+    category: s.category || 'Honor & Bahan',
+    stage,
+    result,
+    sk: s.sk_number || null,
+    decidedAt: s.approved_at ? `${formatShortDate(s.approved_at)} 09:00 WIB` : undefined,
+    note: s.revision_note || s.position_label || 'Sesuai telaah BKPU.',
+  };
+}
+
 export function Wr2Provider({ children }) {
   const [submissions, setSubmissions] = useState(INITIAL_SUBMISSIONS);
   const [notifs, setNotifs] = useState(INITIAL_NOTIFS);
   const [logs, setLogs] = useState(INITIAL_LOGS);
 
+  useEffect(() => {
+    let active = true;
+    api.get('/submissions?size=200')
+      .then((res) => {
+        if (!active || !Array.isArray(res?.submissions)) return;
+        const dbList = res.submissions
+          .filter((s) => s.workflow_stage === 'wr2_review' || s.status === 'disetujui')
+          .map(mapDbSubmissionToWr2);
+        if (dbList.length === 0) return;
+        setSubmissions((prev) => {
+          const byId = new Map(dbList.map((x) => [x.id, x]));
+          const updatedPrev = prev.map((p) => (byId.has(p.id) ? { ...p, ...byId.get(p.id) } : p));
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newOnes = dbList.filter((x) => !existingIds.has(x.id));
+          return [...newOnes, ...updatedPrev];
+        });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // type: 'setuju' | 'bertahap' | 'revisi' | 'tolak'
   const decide = useCallback((subs, type, note) => {
     const t = stamp();
     const approve = type === 'setuju' || type === 'bertahap';
+    const decisionApi = approve ? 'approve' : type === 'revisi' ? 'revisi' : 'reject';
     const ids = subs.map((s) => s.id);
+
+    subs.forEach((s) => {
+      api.post(`/submissions/${encodeURIComponent(s.id)}/approve`, {
+        decision: decisionApi,
+        note: note || '',
+        title: s.title,
+        unit: s.unit,
+        pic: s.pic,
+        category: s.category,
+        amount: s.amount,
+      }).catch(() => {});
+    });
+
     setSubmissions((prev) => {
       let n = prev.filter((x) => x.sk).length;
       return prev.map((s) => {

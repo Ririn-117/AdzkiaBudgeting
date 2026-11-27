@@ -21,6 +21,7 @@ export const SUBMISSION_STATUS = {
   verifikasi: { label: 'Verifikasi WR II', tone: 'blue' },
   disetujui: { label: 'Disetujui Penuh', tone: 'violet' },
   draft: { label: 'Draft Tersimpan', tone: 'sky' },
+  ditolak: { label: 'Ditolak', tone: 'maroon' },
 };
 
 export const SUBMISSIONS = [

@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getDb, runTransaction } from './db.js';
+import { getDb, runTransaction, closeDb } from './db.js';
 import { initSchema } from './schema.js';
 import { ROLES } from '../config/constants.js';
 
@@ -10,35 +10,37 @@ export function seedIfEmpty({ force = false } = {}) {
   if (!force) {
     const existing = db.prepare('SELECT COUNT(*) AS cnt FROM users').get();
     if (existing.cnt > 0) return false;
+  } else {
+    const tables = [
+      'password_resets',
+      'audit_logs',
+      'notifications',
+      'excel_imports',
+      'lpj_documents',
+      'lpjs',
+      'disbursements',
+      'submission_timelines',
+      'submission_documents',
+      'submission_items',
+      'submissions',
+      'sbm_tariffs',
+      'budget_categories',
+      'budget_periods',
+      'role_permissions',
+      'user_sessions',
+      'users',
+      'units',
+      'system_configs',
+    ];
+    for (const t of tables) {
+      db.exec(`DELETE FROM ${t};`);
+      if (t !== 'system_configs') {
+        db.exec(`ALTER TABLE ${t} AUTO_INCREMENT = 1;`);
+      }
+    }
   }
 
   runTransaction((tx) => {
-    if (force) {
-      const tables = [
-        'password_resets',
-        'audit_logs',
-        'notifications',
-        'excel_imports',
-        'lpj_documents',
-        'lpjs',
-        'disbursements',
-        'submission_timelines',
-        'submission_documents',
-        'submission_items',
-        'submissions',
-        'sbm_tariffs',
-        'budget_categories',
-        'budget_periods',
-        'role_permissions',
-        'user_sessions',
-        'users',
-        'units',
-        'system_configs',
-      ];
-      for (const t of tables) {
-        tx.exec(`DELETE FROM ${t};`);
-      }
-    }
 
     // 1. Units
     const insertUnit = tx.prepare(`
@@ -53,16 +55,24 @@ export function seedIfEmpty({ force = false } = {}) {
       ['prodi-akuntansi', 'Program Studi Akuntansi', 'Fakultas Ekonomi & Bisnis', 'Program Studi', 'Nurul Hasanah, M.Ak', '8871092835', 'BSI Virtual Account Operasional Akuntansi', 360000000, 'aktif'],
       ['unit-bapk', 'Biro Administrasi Perencanaan & Keuangan (BAPK)', 'Rektorat', 'Biro', 'Ahmad Zaky, S.E.', '8871092840', 'BSI Virtual Account BAPK', 500000000, 'aktif'],
       ['unit-perpustakaan', 'Perpustakaan', 'Rektorat', 'Lembaga', 'Dra. Halimah', '8871092841', 'BSI Virtual Account Perpustakaan', 250000000, 'aktif'],
+      ['prodi-pai', 'Program Studi Pendidikan Agama Islam (PAI)', 'Fakultas Tarbiyah & Keguruan', 'Program Studi', 'Ust. Zulkifli, M.Ag.', '8871092842', 'BSI Virtual Account Operasional PAI', 320000000, 'aktif'],
+      ['unit-lppm', 'Lembaga Penelitian & Pengabdian Masyarakat (LPPM)', 'Rektorat', 'Lembaga', 'Prof. Hendra Saputra, M.Sc.', '8871092843', 'BSI Virtual Account LPPM', 450000000, 'aktif'],
+      ['unit-baak', 'Biro Administrasi Akademik & Kemahasiswaan (BAAK)', 'Rektorat', 'Biro', 'M. Ilham, S.Kom.', '8871092844', 'BSI Virtual Account BAAK', 300000000, 'aktif'],
     ];
     for (const u of unitsData) insertUnit.run(...u);
 
     const pgmiUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('prodi-pgmi');
     const bapkUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('unit-bapk');
+    const tiUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('prodi-informatika');
+    const mnjUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('prodi-manajemen');
+    const paiUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('prodi-pai');
+    const lppmUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('unit-lppm');
+    const baakUnit = tx.prepare('SELECT id FROM units WHERE code = ?').get('unit-baak');
 
     // 2. Users (matching authService.js MOCK_USERS)
     const passwordHash = bcrypt.hashSync('password123', 10);
     const insertUser = tx.prepare(`
-      INSERT INTO users (username, email, password_hash, name, nidn, rank, employment_status, phone, role, unit_id, status, twofa_enabled)
+      INSERT INTO users (username, email, password_hash, name, nidn, \`rank\`, employment_status, phone, role, unit_id, status, twofa_enabled)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -280,6 +290,51 @@ export function seedIfEmpty({ force = false } = {}) {
         13000000, 'draft', 'draft', 0, null,
         'Draft Tersimpan', '', '', 40, '(RAB Kosong)', null, null, '2025-04-17 11:00:00',
       ],
+      [
+        'TI-2025-008', activePeriod.id, tiUnit.id, unitUser.id,
+        'Pengadaan Upgrade Node Server Lab Komputer',
+        'Fauzan Hakim, M.Kom', 'Sarpras & Lab', 'Pagu Investasi Sarpras',
+        '2025-05-01', '2025-05-15',
+        'Upgrade kapasitas node server laboratorium komputer Prodi Informatika.',
+        58000000, 'verifikasi', 'bkpu_review', 1, null,
+        'Antrean Verifikasi BKPU', '', '', 100, '', '2025-04-16 11:20:00', null, '2025-04-16 11:00:00',
+      ],
+      [
+        'MNJ-2025-012', activePeriod.id, mnjUnit.id, unitUser.id,
+        'Benchmarking Kurikulum MBKM ke Universitas Mitra',
+        'Rina Anggraini, S.E., M.M.', 'Akademik & Kurikulum', 'Pagu Prodi Manajemen',
+        '2025-05-12', '2025-05-14',
+        'Kunjungan benchmarking kurikulum MBKM dan kolaborasi industri.',
+        32500000, 'verifikasi', 'bkpu_review', 1, null,
+        'Antrean Verifikasi BKPU', '', '', 100, '', '2025-04-17 15:40:00', null, '2025-04-17 15:00:00',
+      ],
+      [
+        'LPPM-2025-003', activePeriod.id, lppmUnit.id, unitUser.id,
+        'Hibah Penelitian Dosen Pemula (PDP)',
+        'Prof. Hendra Saputra, M.Sc.', 'Penelitian & Publikasi', 'Pagu Riset Internal',
+        '2025-05-01', '2025-08-30',
+        'Pendanaan hibah penelitian dosen pemula tingkat universitas.',
+        45000000, 'verifikasi', 'bkpu_review', 1, null,
+        'Sedang Ditelaah BKPU', '', '', 100, '', '2025-04-17 10:11:00', null, '2025-04-17 09:50:00',
+      ],
+      [
+        'BAAK-2025-002', activePeriod.id, baakUnit.id, unitUser.id,
+        'Wisuda Sarjana & Magister Periode XI',
+        'M. Ilham, S.Kom.', 'Kemahasiswaan', 'Pagu Operasional Rektorat',
+        '2025-06-10', '2025-06-11',
+        'Penyelenggaraan rapat senat terbuka wisuda sarjana dan magister.',
+        18200000, 'verifikasi', 'bkpu_review', 1, null,
+        'Antrean Verifikasi BKPU', '', '', 100, '', '2025-04-18 08:30:00', null, '2025-04-18 08:00:00',
+      ],
+      [
+        'PAI-2025-009', activePeriod.id, paiUnit.id, unitUser.id,
+        'Pelatihan Metodologi Tafsir Tematik',
+        'Ust. Zulkifli, M.Ag.', 'Akademik & Kurikulum', 'Pagu Prodi PAI',
+        '2025-05-22', '2025-05-23',
+        'Pelatihan metodologi tafsir tematik bagi dosen dan mahasiswa PAI.',
+        5500000, 'verifikasi', 'bkpu_review', 1, null,
+        'Antrean Verifikasi BKPU', '', '', 100, '', '2025-04-18 09:05:00', null, '2025-04-18 08:45:00',
+      ],
     ];
     for (const s of submissionsData) insertSub.run(...s);
 
@@ -324,6 +379,18 @@ export function seedIfEmpty({ force = false } = {}) {
     const sub002 = tx.prepare('SELECT id FROM submissions WHERE code = ?').get('PGMI-2025-002');
     const sub004 = tx.prepare('SELECT id FROM submissions WHERE code = ?').get('PGMI-2025-004');
 
+    // 7b. Submission Documents (Proposal, KAK/TOR, Surat Permohonan)
+    const insertSubDoc = tx.prepare(`
+      INSERT INTO submission_documents (submission_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    insertSubDoc.run(sub001.id, 'Proposal', 'Proposal_Semnas_Pendidikan_Islam_2025.pdf', '/uploads/docs/Proposal_Semnas_Pendidikan_Islam_2025.pdf', 1420800, 'application/pdf', '2025-03-28 07:45:00');
+    insertSubDoc.run(sub001.id, 'KAK/TOR', 'TOR_KAK_Semnas_PGMI_2025.pdf', '/uploads/docs/TOR_KAK_Semnas_PGMI_2025.pdf', 892400, 'application/pdf', '2025-03-28 07:46:00');
+    insertSubDoc.run(sub001.id, 'Surat Permohonan', 'Surat_Permohonan_Kaprodi_PGMI_001.pdf', '/uploads/docs/Surat_Permohonan_Kaprodi_PGMI_001.pdf', 412000, 'application/pdf', '2025-03-28 07:47:00');
+    insertSubDoc.run(sub002.id, 'Proposal', 'Proposal_Pengadaan_Microteaching_Lab.pdf', '/uploads/docs/Proposal_Pengadaan_Microteaching_Lab.pdf', 1650000, 'application/pdf', '2025-04-04 07:50:00');
+    insertSubDoc.run(sub002.id, 'KAK/TOR', 'TOR_Spesifikasi_Teknis_Microteaching.pdf', '/uploads/docs/TOR_Spesifikasi_Teknis_Microteaching.pdf', 980000, 'application/pdf', '2025-04-04 07:52:00');
+    insertSubDoc.run(sub004.id, 'Proposal', 'Proposal_Workshop_Modul_Digital_AI.pdf', '/uploads/docs/Proposal_Workshop_Modul_Digital_AI.pdf', 1245000, 'application/pdf', '2025-04-18 08:45:00');
+
     // 8. Disbursements (matching unitData.js)
     const insertDisb = tx.prepare(`
       INSERT INTO disbursements (
@@ -349,6 +416,17 @@ export function seedIfEmpty({ force = false } = {}) {
     insertLpj.run('LPJ-2025-003', sub001.id, disb003.id, pgmiUnit.id, unitUser.id, 'Seminar Nasional Pendidikan Islam & Publikasi', 'Deadline 10 Mei 2025', 42500000, 42500000, 0, '14 Dokumen Lengkap', 100, 'Kuitansi + Faktur + Berita Acara', 0, 'verifikasi', '', '2025-04-12 14:15:00', null);
     insertLpj.run('LPJ-2025-002', sub002.id, disb006.id, pgmiUnit.id, unitUser.id, 'Pengadaan Media Pembelajaran Microteaching Lab', 'Sarpras Kampus', 45500000, 44900000, 600000, '8 Dokumen (Ada Catatan)', 83, 'Bukti potong PPh 21 belum distempel mitra percetakan', 1, 'revisi', '', '2025-02-28 16:30:00', null);
     insertLpj.run('LPJ-2025-001', sub001.id, disb003.id, pgmiUnit.id, unitUser.id, 'Pelatihan Penulisan Jurnal Bereputasi', 'BAP: 042/BAP-LPJ/ADZ/2025', 35000000, 35000000, 0, '12 Dokumen Lengkap', 100, 'Arsip Disahkan SPI & WR II', 0, 'disetujui', '042/BAP-LPJ/ADZ/2025', '2025-02-08 10:00:00', '2025-02-10 11:05:00');
+
+    const lpj001 = tx.prepare('SELECT id FROM lpjs WHERE code = ?').get('LPJ-2025-001');
+    const lpj003 = tx.prepare('SELECT id FROM lpjs WHERE code = ?').get('LPJ-2025-003');
+    const insertLpjDoc = tx.prepare(`
+      INSERT INTO lpj_documents (lpj_id, checklist_item, file_name, file_path, file_size, is_verified, note, uploaded_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insertLpjDoc.run(lpj001.id, 'Kuitansi asli bermeterai', 'Kuitansi_Bermeterai_LPJ_001.pdf', '/uploads/lpj/Kuitansi_Bermeterai_LPJ_001.pdf', 840000, 1, 'Sah & bermeterai Rp 10.000', '2025-02-08 09:30:00');
+    insertLpjDoc.run(lpj001.id, 'Faktur / nota pembelian', 'Faktur_Pembelian_LPJ_001.pdf', '/uploads/lpj/Faktur_Pembelian_LPJ_001.pdf', 620000, 1, 'Sesuai RAB', '2025-02-08 09:35:00');
+    insertLpjDoc.run(lpj001.id, 'Berita acara kegiatan', 'BAP_Kegiatan_LPJ_001.pdf', '/uploads/lpj/BAP_Kegiatan_LPJ_001.pdf', 510000, 1, 'Terverifikasi SPI', '2025-02-08 09:40:00');
+    insertLpjDoc.run(lpj003.id, 'Kuitansi asli bermeterai', 'Kuitansi_Semnas_LPJ_003.pdf', '/uploads/lpj/Kuitansi_Semnas_LPJ_003.pdf', 910000, 0, 'Menunggu verifikasi BKPU', '2025-04-12 14:00:00');
 
     // 10. Notifications
     const insertNotif = tx.prepare(`
@@ -390,7 +468,7 @@ export function seedIfEmpty({ force = false } = {}) {
 
     // 11. System Configs
     const insertCfg = tx.prepare(`
-      INSERT INTO system_configs (key, tab, label, value)
+      INSERT INTO system_configs (\`key\`, tab, label, value)
       VALUES (?, ?, ?, ?)
     `);
     const configs = [
@@ -425,4 +503,5 @@ if (isDirectRun) {
   const force = process.argv.includes('--force');
   const seeded = seedIfEmpty({ force });
   console.log(seeded ? 'Database seeded successfully.' : 'Database already contains data (use --force to reset).');
+  closeDb();
 }

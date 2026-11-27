@@ -18,11 +18,20 @@ function findSubmission(idOrCode) {
   `).get(idOrCode, Number(idOrCode) || -1);
 }
 
-function generateSubmissionCode(db, unitCode = 'UNIT') {
-  const prefix = unitCode.includes('pgmi') ? 'PGMI' : unitCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'RKAT';
-  const year = new Date().getFullYear();
-  const row = db.prepare('SELECT COUNT(*) AS cnt FROM submissions').get();
-  return `${prefix}-${year}-${String(row.cnt + 1).padStart(3, '0')}`;
+function generateSubmissionCode(db, unitCode = 'UNIT', isDraft = false) {
+  const prefix = unitCode && unitCode.includes('pgmi')
+    ? 'PGMI'
+    : (unitCode || 'UNIT').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'RKAT';
+  const year = 2025;
+  const row = db.prepare('SELECT COALESCE(MAX(id), 0) AS maxId FROM submissions').get();
+  let seq = Number(row?.maxId || 0) + 1;
+  const fmt = (n) => `${prefix}-${year}-${isDraft ? 'D' : ''}${String(n).padStart(isDraft ? 2 : 3, '0')}`;
+  let code = fmt(seq);
+  while (db.prepare('SELECT 1 FROM submissions WHERE code = ?').get(code)) {
+    seq += 1;
+    code = fmt(seq);
+  }
+  return code;
 }
 
 // GET /api/submissions
@@ -142,7 +151,7 @@ router.post('/', requireAuth, requireRole(ROLES.UNIT_PRODI, ROLES.ADMINISTRATOR)
     }
   }
 
-  const code = generateSubmissionCode(db, unitRow?.code);
+  const code = generateSubmissionCode(db, unitRow?.code, !submit);
   const status = submit ? SUBMISSION_STATUS.VERIFIKASI : SUBMISSION_STATUS.DRAFT;
   const stage = submit ? WORKFLOW_STAGE.BKPU_REVIEW : WORKFLOW_STAGE.DRAFT;
   const completeness = submit ? 100 : (computedItems.length > 0 ? 75 : 40);
@@ -337,9 +346,36 @@ router.post('/:idOrCode/submit', requireAuth, requireRole(ROLES.UNIT_PRODI, ROLE
   res.json({ message: 'Pengajuan berhasil dikirim ke BKPU.', submission: findSubmission(sub.id) });
 });
 
+function ensureSubmissionExists(idOrCode, meta = {}, userId = null) {
+  let sub = findSubmission(idOrCode);
+  if (sub || !meta?.title) return sub;
+  const db = getDb();
+  const activePeriod = db.prepare("SELECT id FROM budget_periods WHERE status = 'aktif' ORDER BY id DESC LIMIT 1").get();
+  const unitRow = meta.unit
+    ? db.prepare('SELECT id FROM units WHERE name LIKE ? OR code = ? LIMIT 1').get(`%${meta.unit}%`, meta.unit)
+    : null;
+  db.prepare(`
+    INSERT INTO submissions (
+      code, period_id, unit_id, user_id, title, pic, category, source,
+      total_amount, status, workflow_stage, locked, completeness, submitted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'verifikasi', 'bkpu_review', 1, 100, NOW())
+  `).run(
+    String(idOrCode),
+    activePeriod?.id || null,
+    unitRow?.id || null,
+    userId,
+    String(meta.title),
+    String(meta.pic || 'Kaprodi'),
+    String(meta.category || 'Akademik & Kurikulum'),
+    String(meta.source || 'Pagu Unit'),
+    Number(meta.amount || 0)
+  );
+  return findSubmission(idOrCode);
+}
+
 // POST /api/submissions/:idOrCode/verify (BKPU review)
 router.post('/:idOrCode/verify', requireAuth, requireRole(ROLES.BKPU, ROLES.ADMINISTRATOR), (req, res) => {
-  const sub = findSubmission(req.params.idOrCode);
+  const sub = ensureSubmissionExists(req.params.idOrCode, req.body, req.user.id);
   if (!sub) return res.status(404).json({ message: 'Pengajuan tidak ditemukan.' });
 
   const { decision, note = '' } = req.body || {};
@@ -423,7 +459,7 @@ router.post('/:idOrCode/verify', requireAuth, requireRole(ROLES.BKPU, ROLES.ADMI
 
 // POST /api/submissions/:idOrCode/approve (WR II / Yayasan / Rektor approval)
 router.post('/:idOrCode/approve', requireAuth, requireRole(ROLES.WAKIL_REKTOR_2, ROLES.YAYASAN, ROLES.REKTOR, ROLES.ADMINISTRATOR), (req, res) => {
-  const sub = findSubmission(req.params.idOrCode);
+  const sub = ensureSubmissionExists(req.params.idOrCode, req.body, req.user.id);
   if (!sub) return res.status(404).json({ message: 'Pengajuan tidak ditemukan.' });
 
   const { decision, note = '', sk_number = '' } = req.body || {};

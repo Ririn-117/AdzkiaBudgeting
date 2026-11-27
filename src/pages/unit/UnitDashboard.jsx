@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlarmClock,
@@ -23,6 +24,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { formatRupiah } from '../../utils/format';
 import { ACTIVITIES, ALERTS, BUDGET, DEADLINE, HELPDESK, PIPELINE, PROFILE } from '../../data/unitDummy';
+import { api } from '../../services/api';
 import './unit.css';
 
 function StatCard({ tone, label, icon: Icon, value, footIcon: FootIcon, foot, children }) {
@@ -46,10 +48,40 @@ export default function UnitDashboard() {
   const { user } = useAuth();
   const fullName = user?.name ?? PROFILE.fullName;
 
-  const sisa = BUDGET.pagu - BUDGET.diajukan;
-  const sisaPersen = (sisa / BUDGET.pagu) * 100;
+  const [budget, setBudget] = useState(BUDGET);
+  const [pipeline, setPipeline] = useState(PIPELINE);
+  const [totalUsulan, setTotalUsulan] = useState(8);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/dashboard')
+      .then((data) => {
+        if (!active || !data?.budget) return;
+        setBudget({
+          pagu: Number(data.budget.pagu || BUDGET.pagu),
+          diajukan: Number(data.budget.diajukan ?? BUDGET.diajukan),
+          disetujui: Number(data.budget.disetujui ?? BUDGET.disetujui),
+          dicairkan: Number(data.budget.dicairkan ?? BUDGET.dicairkan),
+        });
+        if (Array.isArray(data.pipeline) && data.pipeline.length > 0) {
+          setPipeline(
+            data.pipeline.map((p) => ({
+              ...p,
+              countLabel: p.countLabel || `${p.count ?? 0} Pengajuan`,
+            }))
+          );
+          setTotalUsulan(data.pipeline.reduce((acc, p) => acc + Number(p.count || 0), 0));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const sisa = Math.max(0, budget.pagu - budget.diajukan);
+  const sisaPersen = budget.pagu > 0 ? (sisa / budget.pagu) * 100 : 0;
   const sisaPersenLabel = sisaPersen.toLocaleString('id-ID', { maximumFractionDigits: 1 });
-  const totalUsulan = 8;
 
   return (
     <div className="dash">
@@ -76,19 +108,19 @@ export default function UnitDashboard() {
       <section className="stat-grid">
         <StatCard
           tone="navy" label="Total Pagu Anggaran" icon={Wallet}
-          value={formatRupiah(BUDGET.pagu)} footIcon={ShieldCheck} foot="Alokasi Resmi RKAT 2025"
+          value={formatRupiah(budget.pagu)} footIcon={ShieldCheck} foot="Alokasi Resmi RKAT 2025"
         />
         <StatCard
           tone="slate" label="Total Diajukan" icon={Send}
-          value={formatRupiah(BUDGET.diajukan)} footIcon={ShieldCheck} foot="6 usulan kegiatan terdaftar"
+          value={formatRupiah(budget.diajukan)} footIcon={ShieldCheck} foot={`${totalUsulan} usulan kegiatan terdaftar`}
         />
         <StatCard
           tone="green" label="Anggaran Disetujui" icon={CheckCircle2}
-          value={formatRupiah(BUDGET.disetujui)} footIcon={ShieldCheck} foot="4 kegiatan BKPU & WR2"
+          value={formatRupiah(budget.disetujui)} footIcon={ShieldCheck} foot="Kegiatan BKPU & WR2"
         />
         <StatCard
           tone="indigo" label="Telah Dicairkan" icon={CircleDollarSign}
-          value={formatRupiah(BUDGET.dicairkan)} footIcon={CheckCircle2} foot="3 termin terealisasi"
+          value={formatRupiah(budget.dicairkan)} footIcon={CheckCircle2} foot="Termin terealisasi"
         />
         <StatCard tone="maroon" label="Sisa Pagu Anggaran" icon={PiggyBank} value={formatRupiah(sisa)}>
           <div className="stat-progress">
@@ -105,7 +137,7 @@ export default function UnitDashboard() {
           <span className="muted">Total {totalUsulan} Pengajuan Terdata</span>
         </div>
         <div className="pipeline">
-          {PIPELINE.map((p) => (
+          {pipeline.map((p) => (
             <div key={p.key} className={`pipe pipe-${p.tone}`}>
               <div>
                 <span className="pipe-label">{p.label}</span>

@@ -91,13 +91,13 @@ router.put('/roles', (req, res) => {
     const upsert = tx.prepare(`
       INSERT INTO role_permissions (role, module, can_view, can_create, can_edit, can_delete, can_verify, can_approve)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(role, module) DO UPDATE SET
-        can_view = excluded.can_view,
-        can_create = excluded.can_create,
-        can_edit = excluded.can_edit,
-        can_delete = excluded.can_delete,
-        can_verify = excluded.can_verify,
-        can_approve = excluded.can_approve
+      ON DUPLICATE KEY UPDATE
+        can_view = VALUES(can_view),
+        can_create = VALUES(can_create),
+        can_edit = VALUES(can_edit),
+        can_delete = VALUES(can_delete),
+        can_verify = VALUES(can_verify),
+        can_approve = VALUES(can_approve)
     `);
     for (const p of permissions) {
       upsert.run(
@@ -114,14 +114,14 @@ router.put('/roles', (req, res) => {
 
 // System Configs
 router.get('/configs', (_req, res) => {
-  const configs = getDb().prepare('SELECT * FROM system_configs ORDER BY tab, key').all();
+  const configs = getDb().prepare('SELECT * FROM system_configs ORDER BY tab, `key`').all();
   res.json({ configs });
 });
 
 router.put('/configs', (req, res) => {
   const { configs = [] } = req.body || {};
   runTransaction((tx) => {
-    const stmt = tx.prepare("UPDATE system_configs SET value = ?, updated_at = datetime('now') WHERE key = ?");
+    const stmt = tx.prepare("UPDATE system_configs SET value = ?, updated_at = NOW() WHERE `key` = ?");
     for (const c of configs) {
       stmt.run(String(c.value ?? ''), c.key);
     }

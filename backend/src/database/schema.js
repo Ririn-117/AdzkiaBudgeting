@@ -1,294 +1,318 @@
 import { getDb } from './db.js';
 
+export const MYSQL_SCHEMA_DDL = `
+CREATE TABLE IF NOT EXISTS units (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(255) NOT NULL,
+  parent_faculty VARCHAR(255) NOT NULL DEFAULT '',
+  type VARCHAR(64) NOT NULL DEFAULT 'Program Studi',
+  head_name VARCHAR(255) NOT NULL DEFAULT '',
+  bsi_account VARCHAR(64) NOT NULL DEFAULT '',
+  bsi_bank_name VARCHAR(255) NOT NULL DEFAULT 'BSI Virtual Account Operasional',
+  pagu_allocated DOUBLE NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'aktif',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  email VARCHAR(191) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  nidn VARCHAR(100) NOT NULL DEFAULT '',
+  \`rank\` VARCHAR(150) NOT NULL DEFAULT '',
+  employment_status VARCHAR(150) NOT NULL DEFAULT '',
+  phone VARCHAR(64) NOT NULL DEFAULT '',
+  role VARCHAR(64) NOT NULL,
+  unit_id INT DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'aktif',
+  twofa_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  whatsapp_notif TINYINT(1) NOT NULL DEFAULT 1,
+  revisi_notif TINYINT(1) NOT NULL DEFAULT 1,
+  photo_url VARCHAR(500) DEFAULT NULL,
+  signature_url VARCHAR(500) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_users_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_jti VARCHAR(128) NOT NULL UNIQUE,
+  device VARCHAR(255) NOT NULL,
+  ip_address VARCHAR(64) NOT NULL DEFAULT '127.0.0.1',
+  location VARCHAR(150) NOT NULL DEFAULT 'Jaringan Kampus',
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  last_active_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  role VARCHAR(64) NOT NULL,
+  module VARCHAR(120) NOT NULL,
+  can_view TINYINT(1) NOT NULL DEFAULT 0,
+  can_create TINYINT(1) NOT NULL DEFAULT 0,
+  can_edit TINYINT(1) NOT NULL DEFAULT 0,
+  can_delete TINYINT(1) NOT NULL DEFAULT 0,
+  can_verify TINYINT(1) NOT NULL DEFAULT 0,
+  can_approve TINYINT(1) NOT NULL DEFAULT 0,
+  UNIQUE KEY uq_role_module (role, module)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS budget_periods (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  academic_year VARCHAR(32) NOT NULL,
+  semester VARCHAR(32) NOT NULL,
+  label VARCHAR(150) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'draf',
+  start_date VARCHAR(32) NOT NULL,
+  end_date VARCHAR(32) NOT NULL,
+  rkat_deadline VARCHAR(32) NOT NULL,
+  lpj_deadline VARCHAR(32) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS budget_categories (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(255) NOT NULL,
+  pillar VARCHAR(150) NOT NULL DEFAULT 'Pilar Pendidikan',
+  spend_category VARCHAR(100) NOT NULL DEFAULT 'Lain-lain',
+  plafon DOUBLE NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'aktif',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sbm_tariffs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  component VARCHAR(255) NOT NULL,
+  unit VARCHAR(64) NOT NULL,
+  max_rate DOUBLE NOT NULL,
+  spend_category VARCHAR(100) NOT NULL,
+  year VARCHAR(16) NOT NULL DEFAULT '2024'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submissions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  period_id INT DEFAULT NULL,
+  unit_id INT DEFAULT NULL,
+  user_id INT DEFAULT NULL,
+  title VARCHAR(500) NOT NULL,
+  pic VARCHAR(255) NOT NULL,
+  category VARCHAR(150) NOT NULL,
+  source VARCHAR(255) NOT NULL DEFAULT 'Pagu Unit',
+  start_date VARCHAR(32) NOT NULL DEFAULT '',
+  end_date VARCHAR(32) NOT NULL DEFAULT '',
+  background TEXT,
+  total_amount DOUBLE NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'draft',
+  workflow_stage VARCHAR(64) NOT NULL DEFAULT 'draft',
+  locked TINYINT(1) NOT NULL DEFAULT 0,
+  phase VARCHAR(32) DEFAULT NULL,
+  position_label VARCHAR(255) NOT NULL DEFAULT '',
+  revision_note TEXT,
+  sk_number VARCHAR(120) NOT NULL DEFAULT '',
+  completeness INT NOT NULL DEFAULT 0,
+  completeness_note VARCHAR(255) NOT NULL DEFAULT '',
+  submitted_at DATETIME DEFAULT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sub_period FOREIGN KEY (period_id) REFERENCES budget_periods(id) ON DELETE SET NULL,
+  CONSTRAINT fk_sub_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_sub_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submission_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  submission_id INT NOT NULL,
+  account_code VARCHAR(64) NOT NULL DEFAULT '',
+  name VARCHAR(255) NOT NULL,
+  spec VARCHAR(500) NOT NULL DEFAULT '',
+  spend_category VARCHAR(100) NOT NULL DEFAULT 'Lain-lain',
+  qty DOUBLE NOT NULL DEFAULT 1,
+  unit VARCHAR(64) NOT NULL DEFAULT 'Paket',
+  price DOUBLE NOT NULL DEFAULT 0,
+  subtotal DOUBLE NOT NULL DEFAULT 0,
+  CONSTRAINT fk_sub_items_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submission_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  submission_id INT NOT NULL,
+  doc_type VARCHAR(100) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size INT NOT NULL DEFAULT 0,
+  mime_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
+  uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sub_docs_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS submission_timelines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  submission_id INT NOT NULL,
+  actor_id INT DEFAULT NULL,
+  actor_role VARCHAR(64) NOT NULL DEFAULT '',
+  action VARCHAR(64) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  note TEXT,
+  tone VARCHAR(32) NOT NULL DEFAULT 'slate',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sub_tl_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sub_tl_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS disbursements (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  submission_id INT NOT NULL,
+  unit_id INT DEFAULT NULL,
+  requested_by INT DEFAULT NULL,
+  termin VARCHAR(100) NOT NULL,
+  termin_note VARCHAR(255) NOT NULL DEFAULT '',
+  amount DOUBLE NOT NULL,
+  receipt_no VARCHAR(120) NOT NULL DEFAULT 'Kuitansi menunggu nomor',
+  bank_name VARCHAR(255) NOT NULL DEFAULT 'BSI Virtual Account Operasional',
+  bank_account VARCHAR(64) NOT NULL DEFAULT '',
+  sp2d_number VARCHAR(120) NOT NULL DEFAULT 'Belum terbit',
+  status VARCHAR(32) NOT NULL DEFAULT 'proses',
+  status_label VARCHAR(150) NOT NULL DEFAULT 'Menunggu Verifikasi Kasir',
+  status_note VARCHAR(255) NOT NULL DEFAULT '',
+  transfer_proof_path VARCHAR(500) DEFAULT NULL,
+  requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  disbursed_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_disb_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_disb_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_disb_user FOREIGN KEY (requested_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS lpjs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  submission_id INT NOT NULL,
+  disbursement_id INT DEFAULT NULL,
+  unit_id INT DEFAULT NULL,
+  user_id INT DEFAULT NULL,
+  title VARCHAR(500) NOT NULL,
+  extra_label VARCHAR(150) NOT NULL DEFAULT 'Termin Tunggal',
+  dana_dicairkan DOUBLE NOT NULL DEFAULT 0,
+  realisasi_belanja DOUBLE NOT NULL DEFAULT 0,
+  silpa_amount DOUBLE NOT NULL DEFAULT 0,
+  silpa_proof_path VARCHAR(500) DEFAULT NULL,
+  docs_summary VARCHAR(150) NOT NULL DEFAULT '0 dari 6 Berkas',
+  progress INT NOT NULL DEFAULT 0,
+  doc_note VARCHAR(255) NOT NULL DEFAULT 'Belum ada bukti diunggah',
+  doc_warn TINYINT(1) NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'draft',
+  bap_number VARCHAR(120) NOT NULL DEFAULT '',
+  submitted_at DATETIME DEFAULT NULL,
+  verified_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_lpj_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_lpj_disb FOREIGN KEY (disbursement_id) REFERENCES disbursements(id) ON DELETE SET NULL,
+  CONSTRAINT fk_lpj_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_lpj_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS lpj_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  lpj_id INT NOT NULL,
+  checklist_item VARCHAR(255) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size INT NOT NULL DEFAULT 0,
+  is_verified TINYINT(1) NOT NULL DEFAULT 0,
+  note VARCHAR(255) NOT NULL DEFAULT '',
+  uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_lpj_docs_lpj FOREIGN KEY (lpj_id) REFERENCES lpjs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS excel_imports (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT DEFAULT NULL,
+  unit_id INT DEFAULT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  total_rows INT NOT NULL DEFAULT 0,
+  valid_rows INT NOT NULL DEFAULT 0,
+  error_rows INT NOT NULL DEFAULT 0,
+  warning_rows INT NOT NULL DEFAULT 0,
+  total_valid_amount DOUBLE NOT NULL DEFAULT 0,
+  parsed_rows_json LONGTEXT NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'parsed',
+  submission_id INT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_imp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_imp_unit FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  CONSTRAINT fk_imp_sub FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT DEFAULT NULL,
+  role_target VARCHAR(64) DEFAULT NULL,
+  category VARCHAR(64) NOT NULL DEFAULT 'info',
+  tag VARCHAR(100) NOT NULL DEFAULT 'INFO',
+  tag_tone VARCHAR(32) NOT NULL DEFAULT 'sky',
+  ref_code VARCHAR(120) NOT NULL DEFAULT '',
+  title VARCHAR(500) NOT NULL,
+  body TEXT NOT NULL,
+  footnote VARCHAR(500) NOT NULL DEFAULT '',
+  accent VARCHAR(32) NOT NULL DEFAULT 'navy',
+  icon VARCHAR(64) NOT NULL DEFAULT 'megaphone',
+  critical TINYINT(1) NOT NULL DEFAULT 0,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  actions_json VARCHAR(2000) NOT NULL DEFAULT '[]',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT DEFAULT NULL,
+  user_name VARCHAR(255) NOT NULL DEFAULT 'System',
+  user_role VARCHAR(64) NOT NULL DEFAULT '',
+  module VARCHAR(120) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  detail TEXT,
+  ip_address VARCHAR(64) NOT NULL DEFAULT '127.0.0.1',
+  status VARCHAR(32) NOT NULL DEFAULT 'success',
+  tone VARCHAR(32) NOT NULL DEFAULT 'slate',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_configs (
+  \`key\` VARCHAR(120) PRIMARY KEY,
+  tab VARCHAR(120) NOT NULL,
+  label VARCHAR(255) NOT NULL,
+  value TEXT NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  email VARCHAR(191) NOT NULL,
+  token VARCHAR(128) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  used TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_pwreset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`;
+
 export function initSchema() {
   const db = getDb();
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS units (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      parent_faculty TEXT DEFAULT '',
-      type TEXT NOT NULL DEFAULT 'Program Studi',
-      head_name TEXT DEFAULT '',
-      bsi_account TEXT DEFAULT '',
-      bsi_bank_name TEXT DEFAULT 'BSI Virtual Account Operasional',
-      pagu_allocated REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'aktif',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      name TEXT NOT NULL,
-      nidn TEXT DEFAULT '',
-      rank TEXT DEFAULT '',
-      employment_status TEXT DEFAULT '',
-      phone TEXT DEFAULT '',
-      role TEXT NOT NULL,
-      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
-      status TEXT NOT NULL DEFAULT 'aktif',
-      twofa_enabled INTEGER NOT NULL DEFAULT 0,
-      whatsapp_notif INTEGER NOT NULL DEFAULT 1,
-      revisi_notif INTEGER NOT NULL DEFAULT 1,
-      photo_url TEXT DEFAULT NULL,
-      signature_url TEXT DEFAULT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS user_sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token_jti TEXT NOT NULL UNIQUE,
-      device TEXT NOT NULL,
-      ip_address TEXT DEFAULT '127.0.0.1',
-      location TEXT DEFAULT 'Jaringan Kampus',
-      is_active INTEGER NOT NULL DEFAULT 1,
-      last_active_at TEXT NOT NULL DEFAULT (datetime('now')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS role_permissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      role TEXT NOT NULL,
-      module TEXT NOT NULL,
-      can_view INTEGER NOT NULL DEFAULT 0,
-      can_create INTEGER NOT NULL DEFAULT 0,
-      can_edit INTEGER NOT NULL DEFAULT 0,
-      can_delete INTEGER NOT NULL DEFAULT 0,
-      can_verify INTEGER NOT NULL DEFAULT 0,
-      can_approve INTEGER NOT NULL DEFAULT 0,
-      UNIQUE(role, module)
-    );
-
-    CREATE TABLE IF NOT EXISTS budget_periods (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      academic_year TEXT NOT NULL,
-      semester TEXT NOT NULL,
-      label TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draf',
-      start_date TEXT NOT NULL,
-      end_date TEXT NOT NULL,
-      rkat_deadline TEXT NOT NULL,
-      lpj_deadline TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS budget_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      pillar TEXT NOT NULL DEFAULT 'Pilar Pendidikan',
-      spend_category TEXT NOT NULL DEFAULT 'Lain-lain',
-      plafon REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'aktif',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS sbm_tariffs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      component TEXT NOT NULL,
-      unit TEXT NOT NULL,
-      max_rate REAL NOT NULL,
-      spend_category TEXT NOT NULL,
-      year TEXT NOT NULL DEFAULT '2024'
-    );
-
-    CREATE TABLE IF NOT EXISTS submissions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      period_id INTEGER REFERENCES budget_periods(id) ON DELETE SET NULL,
-      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
-      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      title TEXT NOT NULL,
-      pic TEXT NOT NULL,
-      category TEXT NOT NULL,
-      source TEXT NOT NULL DEFAULT 'Pagu Unit',
-      start_date TEXT DEFAULT '',
-      end_date TEXT DEFAULT '',
-      background TEXT DEFAULT '',
-      total_amount REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'draft',
-      workflow_stage TEXT NOT NULL DEFAULT 'draft',
-      locked INTEGER NOT NULL DEFAULT 0,
-      phase TEXT DEFAULT NULL,
-      position_label TEXT DEFAULT '',
-      revision_note TEXT DEFAULT '',
-      sk_number TEXT DEFAULT '',
-      completeness INTEGER NOT NULL DEFAULT 0,
-      completeness_note TEXT DEFAULT '',
-      submitted_at TEXT DEFAULT NULL,
-      approved_at TEXT DEFAULT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS submission_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      account_code TEXT DEFAULT '',
-      name TEXT NOT NULL,
-      spec TEXT DEFAULT '',
-      spend_category TEXT NOT NULL DEFAULT 'Lain-lain',
-      qty REAL NOT NULL DEFAULT 1,
-      unit TEXT NOT NULL DEFAULT 'Paket',
-      price REAL NOT NULL DEFAULT 0,
-      subtotal REAL NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS submission_documents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      doc_type TEXT NOT NULL,
-      file_name TEXT NOT NULL,
-      file_path TEXT NOT NULL,
-      file_size INTEGER NOT NULL DEFAULT 0,
-      mime_type TEXT DEFAULT 'application/pdf',
-      uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS submission_timelines (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      actor_role TEXT DEFAULT '',
-      action TEXT NOT NULL,
-      title TEXT NOT NULL,
-      note TEXT DEFAULT '',
-      tone TEXT NOT NULL DEFAULT 'slate',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS disbursements (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
-      requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      termin TEXT NOT NULL,
-      termin_note TEXT DEFAULT '',
-      amount REAL NOT NULL,
-      receipt_no TEXT DEFAULT 'Kuitansi menunggu nomor',
-      bank_name TEXT DEFAULT 'BSI Virtual Account Operasional',
-      bank_account TEXT DEFAULT '',
-      sp2d_number TEXT DEFAULT 'Belum terbit',
-      status TEXT NOT NULL DEFAULT 'proses',
-      status_label TEXT NOT NULL DEFAULT 'Menunggu Verifikasi Kasir',
-      status_note TEXT DEFAULT '',
-      transfer_proof_path TEXT DEFAULT NULL,
-      requested_at TEXT NOT NULL DEFAULT (datetime('now')),
-      disbursed_at TEXT DEFAULT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS lpjs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      code TEXT NOT NULL UNIQUE,
-      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      disbursement_id INTEGER REFERENCES disbursements(id) ON DELETE SET NULL,
-      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
-      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      title TEXT NOT NULL,
-      extra_label TEXT DEFAULT 'Termin Tunggal',
-      dana_dicairkan REAL NOT NULL DEFAULT 0,
-      realisasi_belanja REAL NOT NULL DEFAULT 0,
-      silpa_amount REAL NOT NULL DEFAULT 0,
-      silpa_proof_path TEXT DEFAULT NULL,
-      docs_summary TEXT DEFAULT '0 dari 6 Berkas',
-      progress INTEGER NOT NULL DEFAULT 0,
-      doc_note TEXT DEFAULT 'Belum ada bukti diunggah',
-      doc_warn INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'draft',
-      bap_number TEXT DEFAULT '',
-      submitted_at TEXT DEFAULT NULL,
-      verified_at TEXT DEFAULT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS lpj_documents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      lpj_id INTEGER NOT NULL REFERENCES lpjs(id) ON DELETE CASCADE,
-      checklist_item TEXT NOT NULL,
-      file_name TEXT NOT NULL,
-      file_path TEXT NOT NULL,
-      file_size INTEGER NOT NULL DEFAULT 0,
-      is_verified INTEGER NOT NULL DEFAULT 0,
-      note TEXT DEFAULT '',
-      uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS excel_imports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
-      file_name TEXT NOT NULL,
-      total_rows INTEGER NOT NULL DEFAULT 0,
-      valid_rows INTEGER NOT NULL DEFAULT 0,
-      error_rows INTEGER NOT NULL DEFAULT 0,
-      warning_rows INTEGER NOT NULL DEFAULT 0,
-      total_valid_amount REAL NOT NULL DEFAULT 0,
-      parsed_rows_json TEXT NOT NULL DEFAULT '[]',
-      status TEXT NOT NULL DEFAULT 'parsed',
-      submission_id INTEGER REFERENCES submissions(id) ON DELETE SET NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      role_target TEXT DEFAULT NULL,
-      category TEXT NOT NULL DEFAULT 'info',
-      tag TEXT NOT NULL DEFAULT 'INFO',
-      tag_tone TEXT NOT NULL DEFAULT 'sky',
-      ref_code TEXT DEFAULT '',
-      title TEXT NOT NULL,
-      body TEXT NOT NULL,
-      footnote TEXT DEFAULT '',
-      accent TEXT NOT NULL DEFAULT 'navy',
-      icon TEXT NOT NULL DEFAULT 'megaphone',
-      critical INTEGER NOT NULL DEFAULT 0,
-      is_read INTEGER NOT NULL DEFAULT 0,
-      actions_json TEXT NOT NULL DEFAULT '[]',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      user_name TEXT DEFAULT 'System',
-      user_role TEXT DEFAULT '',
-      module TEXT NOT NULL,
-      action TEXT NOT NULL,
-      title TEXT NOT NULL,
-      detail TEXT DEFAULT '',
-      ip_address TEXT DEFAULT '127.0.0.1',
-      status TEXT NOT NULL DEFAULT 'success',
-      tone TEXT NOT NULL DEFAULT 'slate',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS system_configs (
-      key TEXT PRIMARY KEY,
-      tab TEXT NOT NULL,
-      label TEXT NOT NULL,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS password_resets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      email TEXT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      expires_at TEXT NOT NULL,
-      used INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
+  db.exec(MYSQL_SCHEMA_DDL);
 }

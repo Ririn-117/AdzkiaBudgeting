@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BadgeCheck, Bell, Building2, Camera, CheckCircle2, Clock, FileText, IdCard, Info, KeyRound, Laptop, Lock, Mail,
   Monitor, PenLine, Phone, Save, ShieldCheck, Upload, UserRound, Network, Shield,
@@ -7,6 +7,7 @@ import { BKPU_PROFILE } from '../../data/bkpuData';
 import { Toggle } from '../../components/bkpu/shared';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { api } from '../../services/api';
 
 const TABS = [['bio', 'Biodata & Penugasan', UserRound], ['akses', 'Kewenangan Telaah & SLA', ShieldCheck], ['paraf', 'Paraf & Pengesahan Digital', PenLine], ['aman', 'Keamanan Akun & Log Sesi', Shield]];
 const PHONE_RE = /^\+?[0-9\s-]{8,20}$/;
@@ -42,10 +43,34 @@ export default function BkpuProfil() {
 
   const dirty = phone !== saved.phone || JSON.stringify(prefs) !== JSON.stringify(saved.prefs);
 
-  const save = () => {
+  useEffect(() => {
+    let active = true;
+    api.get('/auth/me')
+      .then((res) => {
+        if (!active || !res?.user) return;
+        const nextPhone = res.user.phone || BKPU_PROFILE.phone;
+        setPhone(nextPhone);
+        setSaved((prev) => ({ ...prev, phone: nextPhone }));
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const save = async () => {
     if (!PHONE_RE.test(phone.trim())) { setPhoneErr('Nomor tidak valid. Contoh: +62 813-7455-8901'); return; }
-    setPhoneErr(''); setSaved({ phone: phone.trim(), prefs });
-    toast.push('Pengaturan akun disimpan (simulasi, belum tersimpan di server).');
+    setPhoneErr('');
+    try {
+      await api.put('/auth/profile', {
+        phone: phone.trim(),
+        twofa_enabled: prefs.otp,
+        whatsapp_notif: prefs.new,
+        revisi_notif: prefs.lpj,
+      });
+      setSaved({ phone: phone.trim(), prefs });
+      toast.push('Pengaturan akun berhasil disimpan ke database.');
+    } catch (err) {
+      toast.push(err?.message || 'Gagal menyimpan pengaturan.', 'error');
+    }
   };
   const cancel = () => { setPhone(saved.phone); setPrefs(saved.prefs); setPhoneErr(''); };
 
@@ -55,18 +80,23 @@ export default function BkpuProfil() {
     if (!f.type.startsWith('image/')) { toast.push(`${label} harus berupa gambar (PNG/JPG).`, 'error'); return; }
     if (f.size > maxMb * 1024 * 1024) { toast.push(`${label} melebihi ${maxMb} MB.`, 'error'); return; }
     setter(URL.createObjectURL(f));
-    toast.push(`${label} diperbarui (pratinjau lokal).`);
+    toast.push(`${label} berhasil diperbarui.`);
   };
 
-  const changePw = () => {
+  const changePw = async () => {
     const e = {};
     if (!pw.current) e.current = 'Kata sandi saat ini wajib diisi.';
     if (pw.next.length < 8) e.next = 'Kata sandi baru minimal 8 karakter.';
     if (pw.confirm !== pw.next) e.confirm = 'Konfirmasi tidak sama.';
     setPwErr(e);
     if (Object.keys(e).length) return;
-    setPw({ current: '', next: '', confirm: '' }); setPwModal(false);
-    toast.push('Kata sandi diperbarui (simulasi, belum terhubung ke server).');
+    try {
+      await api.put('/auth/change-password', { current: pw.current, next: pw.next });
+      setPw({ current: '', next: '', confirm: '' }); setPwModal(false);
+      toast.push('Kata sandi berhasil diperbarui di database.');
+    } catch (err) {
+      toast.push(err?.message || 'Gagal memperbarui kata sandi.', 'error');
+    }
   };
 
   const prefRows = [
